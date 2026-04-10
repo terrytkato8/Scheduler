@@ -8,19 +8,41 @@ export async function GET() {
 
   try {
     const supabase = createClient()
-    const { data, error } = await supabase
+
+    const { data: avData, error } = await supabase
       .from('availability')
-      .select('user_id, display_name, slots')
+      .select('user_id, display_name, available_slots, busy_slots')
       .order('updated_at', { ascending: true })
 
-    if (error) {
-      console.error('Team availability error:', error.message)
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+    if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 })
+
+    const userIds = (avData ?? []).map(a => a.user_id)
+
+    let profileMap: Record<string, { team: string | null; role: string | null; team_lead_approved: boolean }> = {}
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, team, role, team_lead_approved')
+        .in('user_id', userIds)
+
+      profileMap = Object.fromEntries(
+        (profiles ?? []).map(p => [p.user_id, p])
+      )
     }
 
-    return NextResponse.json({ members: data ?? [] })
+    const members = (avData ?? []).map(a => ({
+      user_id: a.user_id,
+      display_name: a.display_name,
+      available_slots: a.available_slots ?? [],
+      busy_slots: a.busy_slots ?? [],
+      team: profileMap[a.user_id]?.team ?? null,
+      role: profileMap[a.user_id]?.role ?? null,
+      team_lead_approved: profileMap[a.user_id]?.team_lead_approved ?? false,
+    }))
+
+    return NextResponse.json({ members })
   } catch (err) {
-    console.error('Team availability error:', err)
+    console.error(err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

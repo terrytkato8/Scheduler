@@ -1,12 +1,9 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { isAdminUser } from '@/lib/auth'
 import Sidebar from './_components/Sidebar'
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
 
@@ -18,7 +15,7 @@ export default async function DashboardLayout({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-      <Sidebar displayName={displayName} />
+      <Sidebar displayName={displayName} isAdmin={isAdminUser(userId)} />
       <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
         <main style={{ padding: '2rem', maxWidth: '1200px' }}>{children}</main>
       </div>
