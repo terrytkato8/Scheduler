@@ -11,7 +11,7 @@ export default function SignUpPage() {
         background: '#f8fafc',
       }}
     >
-      <SignUp afterSignUpUrl="/dashboard" />
+      <SignUp fallbackRedirectUrl="/dashboard" />
     </div>
   )
 }

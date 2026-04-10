@@ -11,7 +11,7 @@ export default function SignInPage() {
         background: '#f8fafc',
       }}
     >
-      <SignIn afterSignInUrl="/dashboard" />
+      <SignIn fallbackRedirectUrl="/dashboard" />
     </div>
   )
 }
