@@ -9,9 +9,11 @@ export async function POST(req: NextRequest) {
   }
 
   let slots: string[]
+  let displayName: string | undefined
   try {
     const body = await req.json()
     slots = body.slots ?? []
+    displayName = body.displayName
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
@@ -23,6 +25,7 @@ export async function POST(req: NextRequest) {
       {
         user_id: userId,
         slots,
+        display_name: displayName ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' }

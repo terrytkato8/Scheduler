@@ -13,7 +13,7 @@ function formatHour(h: number) {
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export default function ScheduleView({ userId }: { userId: string }) {
+export default function ScheduleView({ userId, displayName }: { userId: string; displayName: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
 
@@ -33,7 +33,7 @@ export default function ScheduleView({ userId }: { userId: string }) {
       const res = await fetch('/api/availability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slots: Array.from(selected) }),
+        body: JSON.stringify({ slots: Array.from(selected), displayName }),
       })
       setSaveStatus(res.ok ? 'saved' : 'error')
     } catch {
@@ -41,27 +41,12 @@ export default function ScheduleView({ userId }: { userId: string }) {
     }
   }
 
-  const saveLabel = { idle: 'Save', saving: 'Saving…', saved: 'Saved!', error: 'Error — retry' }[saveStatus]
+  const saveLabel = { idle: 'Save availability', saving: 'Saving…', saved: 'Saved!', error: 'Error — retry' }[saveStatus]
 
   return (
     <div>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>My Availability</h2>
-          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            Click slots to mark when you&apos;re available, then save.
-          </p>
-        </div>
+      {/* Save button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <button
           onClick={save}
           disabled={saveStatus === 'saving'}
@@ -180,7 +165,7 @@ export default function ScheduleView({ userId }: { userId: string }) {
       </div>
 
       <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#94a3b8' }}>
-        {selected.size} slot{selected.size !== 1 ? 's' : ''} selected &mdash; user ID: {userId.slice(0, 8)}&hellip;
+        {selected.size} slot{selected.size !== 1 ? 's' : ''} selected
       </p>
     </div>
   )
