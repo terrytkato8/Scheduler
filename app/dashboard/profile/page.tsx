@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import React, { useState, useEffect } from 'react'
 
 interface Profile {
   display_name: string | null
@@ -31,7 +31,7 @@ export default function ProfilePage() {
       })
   }, [])
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setStatus('idle')
@@ -94,13 +94,17 @@ export default function ProfilePage() {
 
           <label style={lbl}>
             Team
-            <input
-              type="text"
+            <select
               value={team}
               onChange={e => setTeam(e.target.value)}
-              placeholder="e.g. Engineering, Marketing…"
               style={inp}
-            />
+            >
+              <option value="">— Select a team —</option>
+              <option value="Corebound">Corebound</option>
+              <option value="Last Light">Last Light</option>
+              <option value="BBCU">BBCU</option>
+              <option value="Studio">Studio</option>
+            </select>
           </label>
 
           {/* Team lead request */}
