@@ -8,12 +8,15 @@ interface Project {
   id: string
   name: string
   description: string | null
+  game: string | null
   team: string | null
   type: string
   color: string
   owner_id: string
   created_at: string
 }
+
+const GAMES = ['Corebound', 'Last Light', 'BBCU', 'Studio / General']
 
 const BOARD_TYPES = [
   {
@@ -55,6 +58,7 @@ export default function ProjectsPage() {
   const [step, setStep] = useState<1 | 2>(1)
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
+  const [game, setGame] = useState('')
   const [type, setType] = useState('standard')
   const [color, setColor] = useState('#e85d7b')
   const [team, setTeam] = useState('')
@@ -72,17 +76,18 @@ export default function ProjectsPage() {
       .catch(() => { setApiError('Could not connect to database'); setLoading(false) })
   }, [])
 
-  const openCreate = () => { setCreating(true); setStep(1); setName(''); setDesc(''); setType('standard'); setColor('#e85d7b'); setTeam(''); setFormError(null) }
+  const openCreate = () => { setCreating(true); setStep(1); setName(''); setDesc(''); setGame(''); setType('standard'); setColor('#e85d7b'); setTeam(''); setFormError(null) }
   const closeCreate = () => { setCreating(false); setFormError(null) }
 
   const createProject = async () => {
     if (!name.trim()) { setFormError('Project name is required'); return }
+    if (!game) { setFormError('Please select a game / title'); return }
     setSubmitting(true); setFormError(null)
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, type, color, team: team || null }),
+        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, game: game || null, type, color, team: team || null }),
       })
       const d = await res.json()
       if (!res.ok) {
@@ -191,6 +196,13 @@ export default function ProjectsPage() {
                     />
                   </label>
                   <label style={lbl}>
+                    Game / Title *
+                    <select value={game} onChange={e => setGame(e.target.value)} style={{ ...inp, color: game ? '#172b4d' : '#94a3b8' }}>
+                      <option value="">— Select a game —</option>
+                      {GAMES.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </label>
+                  <label style={lbl}>
                     Description
                     <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What is this project about?" style={inp} />
                   </label>
@@ -216,7 +228,7 @@ export default function ProjectsPage() {
                   </div>
                   {formError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{formError}</p>}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
-                    <button onClick={() => { if (!name.trim()) { setFormError('Project name is required'); return }; setFormError(null); setStep(2) }} style={pinkBtn}>
+                    <button onClick={() => { if (!name.trim()) { setFormError('Project name is required'); return }; if (!game) { setFormError('Please select a game / title'); return }; setFormError(null); setStep(2) }} style={pinkBtn}>
                       Next →
                     </button>
                   </div>
@@ -322,6 +334,11 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {project.game && (
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: col, background: col + '12', padding: '2px 7px', borderRadius: '4px' }}>
+              🎮 {project.game}
+            </span>
+          )}
           {project.team && (
             <span style={{ fontSize: '0.68rem', color: '#6b778c', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{project.team}</span>
           )}

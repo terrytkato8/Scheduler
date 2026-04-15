@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text NOT NULL,
   description text,
+  game        text,                              -- game title this project belongs to
   team        text,
   type        text NOT NULL DEFAULT 'standard',  -- 'kanban' | 'art_pipeline' | 'standard'
   color       text NOT NULL DEFAULT '#e85d7b',

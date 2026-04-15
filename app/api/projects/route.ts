@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   let body: {
     name: string
     description?: string
+    game?: string
     team?: string
     type?: string
     color?: string
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
     .insert({
       name: body.name.trim(),
       description: body.description?.trim() ?? null,
+      game: body.game ?? null,
       team: body.team ?? null,
       type: body.type ?? 'standard',
       color: body.color ?? '#e85d7b',
