@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   let body: {
     display_name?: string
     role?: string
-    team?: string
+    teams?: string[]
     request_team_lead?: boolean
   }
   try { body = await req.json() }
@@ -45,11 +45,14 @@ export async function POST(req: NextRequest) {
   const alreadyRequested = existing?.team_lead_requested || existing?.team_lead_approved
   const shouldRequest = body.request_team_lead && !alreadyRequested
 
+  // Primary team = first selected team (for backwards compat with single-team columns)
+  const primaryTeam = body.teams?.[0] ?? null
+
   if (shouldRequest) {
     await supabase.from('team_lead_requests').insert({
       user_id: userId,
       display_name: body.display_name ?? null,
-      team: body.team ?? null,
+      team: primaryTeam,
       role: body.role ?? null,
       status: 'pending',
     })
@@ -62,7 +65,8 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         display_name: body.display_name ?? null,
         role: body.role ?? null,
-        team: body.team ?? null,
+        team: primaryTeam,
+        teams: body.teams ?? [],
         team_lead_requested: body.request_team_lead ?? existing?.team_lead_requested ?? false,
         updated_at: new Date().toISOString(),
       },

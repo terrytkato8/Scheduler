@@ -16,6 +16,16 @@ interface CalEvent {
   end_hour?: number
 }
 
+interface CalTask {
+  id: string
+  title: string
+  priority: string
+  due_date: string
+  status: string
+  project_id: string
+  projects?: { name: string } | null
+}
+
 interface Meeting {
   id: string
   title: string
@@ -43,6 +53,7 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [events, setEvents] = useState<CalEvent[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [myTasks, setMyTasks] = useState<CalTask[]>([])
   const [sel, setSel] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [sh, setSh] = useState<number | ''>('')
@@ -58,6 +69,8 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
       .then(r => r.json()).then(d => setEvents(d.events ?? [])).catch(() => {})
     fetch(`/api/meetings?month=${monthStr}`)
       .then(r => r.json()).then(d => setMeetings(d.meetings ?? [])).catch(() => {})
+    fetch('/api/my-tasks')
+      .then(r => r.json()).then(d => setMyTasks(d.tasks ?? [])).catch(() => {})
   }
 
   useEffect(() => { loadData() }, [monthStr]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -73,8 +86,10 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
   const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate())
   const eventsOn = (ds: string) => events.filter(e => e.date === ds)
   const meetingsOn = (ds: string) => meetings.filter(mt => mt.date === ds)
+  const tasksOn = (ds: string) => myTasks.filter(t => t.due_date === ds)
   const selEvents = sel ? eventsOn(sel) : []
   const selMeetings = sel ? meetingsOn(sel) : []
+  const selTasks = sel ? tasksOn(sel) : []
 
   const prevMonth = () => setView(v => v.m === 0 ? { y: v.y - 1, m: 11 } : { y: v.y, m: v.m - 1 })
   const nextMonth = () => setView(v => v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 })
@@ -161,7 +176,8 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
                 const ds = toDateStr(y, m, day)
                 const dayEvs = eventsOn(ds)
                 const dayMts = meetingsOn(ds)
-                const total = dayEvs.length + dayMts.length
+                const dayTasks = tasksOn(ds)
+                const total = dayEvs.length + dayMts.length + dayTasks.length
                 const isToday = ds === todayStr
                 const isSel = ds === sel
                 return (
@@ -195,6 +211,11 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
                     {dayMts.slice(0, 1).map(mt => (
                       <div key={mt.id} style={{ fontSize: '0.63rem', background: '#f59e0b', color: 'white', borderRadius: '3px', padding: '1px 4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         📅 {mt.title}
+                      </div>
+                    ))}
+                    {dayTasks.slice(0, 1).map(t => (
+                      <div key={t.id} style={{ fontSize: '0.63rem', background: TASK_PRIORITY_COLOR[t.priority] ?? '#8b5cf6', color: 'white', borderRadius: '3px', padding: '1px 4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        ✓ {t.title}
                       </div>
                     ))}
                     {total > 2 && <div style={{ fontSize: '0.58rem', color: '#94a3b8' }}>+{total - 2} more</div>}
@@ -259,7 +280,23 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
                 </div>
               )}
 
-              {selEvents.length === 0 && selMeetings.length === 0 && (
+              {/* Tasks due on this day */}
+              {selTasks.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Tasks Due</div>
+                  {selTasks.map(t => (
+                    <div key={t.id} style={{ background: TASK_PRIORITY_BG[t.priority] ?? '#f5f3ff', border: `1px solid ${TASK_PRIORITY_COLOR[t.priority] ?? '#8b5cf6'}30`, borderLeft: `3px solid ${TASK_PRIORITY_COLOR[t.priority] ?? '#8b5cf6'}`, borderRadius: '0.375rem', padding: '0.4rem 0.625rem', marginBottom: '0.35rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>{t.title}</div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px' }}>
+                        {t.projects?.name && <span>{t.projects.name} · </span>}
+                        <span style={{ color: TASK_PRIORITY_COLOR[t.priority] ?? '#8b5cf6', fontWeight: 700 }}>{t.priority}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selEvents.length === 0 && selMeetings.length === 0 && selTasks.length === 0 && (
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>No events or meetings</p>
               )}
 
@@ -302,6 +339,13 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
       </div>
     </div>
   )
+}
+
+const TASK_PRIORITY_COLOR: Record<string, string> = {
+  low: '#22c55e', medium: '#f59e0b', high: '#f97316', critical: '#ef4444',
+}
+const TASK_PRIORITY_BG: Record<string, string> = {
+  low: '#f0fdf4', medium: '#fffbeb', high: '#fff7ed', critical: '#fef2f2',
 }
 
 const navBtn: React.CSSProperties = {

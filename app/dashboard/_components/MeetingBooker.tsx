@@ -33,6 +33,7 @@ interface Props {
 export default function MeetingBooker({ onCreated, onCancel, initialDate }: Props) {
   const [members, setMembers] = useState<Member[]>([])
   const [guests, setGuests] = useState<string[]>([])
+  const [guestFilter, setGuestFilter] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(initialDate ?? '')
@@ -172,8 +173,19 @@ export default function MeetingBooker({ onCreated, onCancel, initialDate }: Prop
           {members.length === 0 ? (
             <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>No other members have profiles yet.</p>
           ) : (
+            <>
+              <input
+                type="text"
+                value={guestFilter}
+                onChange={e => setGuestFilter(e.target.value)}
+                placeholder="Filter members…"
+                style={{ ...inp, marginBottom: '0.5rem', fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+              />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-              {members.map(m => {
+              {members.filter(m => {
+                const q = guestFilter.toLowerCase()
+                return !q || (m.display_name ?? '').toLowerCase().includes(q) || (m.role ?? '').toLowerCase().includes(q) || (m.team ?? '').toLowerCase().includes(q)
+              }).map(m => {
                 const sel = guests.includes(m.user_id)
                 return (
                   <button
@@ -197,6 +209,7 @@ export default function MeetingBooker({ onCreated, onCancel, initialDate }: Prop
                 )
               })}
             </div>
+            </>
           )}
         </div>
 

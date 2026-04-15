@@ -35,11 +35,18 @@ const ShieldIcon = () => (
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 )
+const BriefcaseIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+  </svg>
+)
 
 const NAV = [
   { href: '/dashboard/availability', label: 'My Availability', Icon: GridIcon },
   { href: '/dashboard/team',         label: 'Team Calendar',   Icon: UsersIcon },
   { href: '/dashboard/calendar',     label: 'My Calendar',     Icon: CalIcon },
+  { href: '/dashboard/projects',     label: 'Projects',        Icon: BriefcaseIcon },
   { href: '/dashboard/profile',      label: 'My Profile',      Icon: UserIcon },
 ]
 

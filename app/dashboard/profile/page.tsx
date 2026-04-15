@@ -2,10 +2,14 @@
 
 import React, { useState, useEffect } from 'react'
 
+const TEAMS = ['Corebound', 'Last Light', 'BBCU', 'Studio']
+const ROLES = ['Designer', 'Engineer', 'Artist', 'Sound Designer', 'Other']
+
 interface Profile {
   display_name: string | null
   role: string | null
   team: string | null
+  teams: string[] | null
   team_lead_requested: boolean
   team_lead_approved: boolean
 }
@@ -14,7 +18,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [role, setRole] = useState('')
-  const [team, setTeam] = useState('')
+  const [teams, setTeams] = useState<string[]>([])
   const [requestLead, setRequestLead] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
@@ -27,9 +31,13 @@ export default function ProfilePage() {
         setProfile(p)
         setDisplayName(p.display_name ?? '')
         setRole(p.role ?? '')
-        setTeam(p.team ?? '')
+        const t = p.teams ?? (p.team ? [p.team] : [])
+        setTeams(t)
       })
   }, [])
+
+  const toggleTeam = (t: string) =>
+    setTeams(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,8 +49,8 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           display_name: displayName.trim() || null,
-          role: role.trim() || null,
-          team: team.trim() || null,
+          role: role || null,
+          teams,
           request_team_lead: requestLead,
         }),
       })
@@ -83,29 +91,41 @@ export default function ProfilePage() {
 
           <label style={lbl}>
             Role
-            <input
-              type="text"
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              placeholder="e.g. Software Engineer, Designer…"
-              style={inp}
-            />
-          </label>
-
-          <label style={lbl}>
-            Team
-            <select
-              value={team}
-              onChange={e => setTeam(e.target.value)}
-              style={inp}
-            >
-              <option value="">— Select a team —</option>
-              <option value="Corebound">Corebound</option>
-              <option value="Last Light">Last Light</option>
-              <option value="BBCU">BBCU</option>
-              <option value="Studio">Studio</option>
+            <select value={role} onChange={e => setRole(e.target.value)} style={inp}>
+              <option value="">— Select a role —</option>
+              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
+
+          {/* Multi-team selection */}
+          <div>
+            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Team(s)</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {TEAMS.map(t => {
+                const sel = teams.includes(t)
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTeam(t)}
+                    style={{
+                      padding: '0.35rem 0.875rem', borderRadius: '999px', cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 600,
+                      border: sel ? '2px solid #667eea' : '1px solid #e2e8f0',
+                      background: sel ? '#eef2ff' : 'white',
+                      color: sel ? '#4338ca' : '#475569',
+                      transition: 'all 0.1s',
+                    }}
+                  >
+                    {sel && '✓ '}{t}
+                  </button>
+                )
+              })}
+            </div>
+            {teams.length === 0 && (
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.35rem' }}>Select at least one team.</p>
+            )}
+          </div>
 
           {/* Team lead request */}
           <div style={{ background: '#f8fafc', borderRadius: '0.5rem', padding: '0.875rem', border: '1px solid #e2e8f0' }}>
