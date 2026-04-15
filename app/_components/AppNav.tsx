@@ -2,54 +2,80 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 
 export default function AppNav() {
   const pathname = usePathname()
-  const onScheduler = !pathname.startsWith('/projects')
   const onProjects = pathname.startsWith('/projects')
 
   return (
     <div style={{
-      height: '44px',
-      background: '#0f172a',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      height: '52px',
+      background: '#0d0d14',
+      borderBottom: '1px solid rgba(232,93,123,0.15)',
       display: 'flex',
       alignItems: 'center',
       padding: '0 1rem',
-      gap: '0.25rem',
+      gap: '0',
       flexShrink: 0,
       position: 'sticky',
       top: 0,
       zIndex: 200,
     }}>
       {/* Brand */}
-      <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginRight: '1rem' }}>
-        Kato
-      </span>
+      <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginRight: '1.5rem' }}>
+        <Image
+          src="/art/avatar.png"
+          alt="Kato.8"
+          width={28}
+          height={28}
+          style={{ imageRendering: 'pixelated' }}
+        />
+        <span style={{
+          fontWeight: 800,
+          fontSize: '0.95rem',
+          letterSpacing: '-0.01em',
+          background: 'linear-gradient(135deg, #e85d7b 0%, #ff8fab 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+        }}>
+          KATO.8
+        </span>
+        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', alignSelf: 'flex-end', marginBottom: '1px' }}>
+          Studios
+        </span>
+      </Link>
+
+      {/* Divider */}
+      <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', marginRight: '1rem' }} />
 
       {/* Section tabs */}
-      <NavTab href="/dashboard" label="Scheduler" active={onScheduler} />
-      <NavTab href="/projects" label="Projects" active={onProjects} />
+      <NavTab href="/dashboard" label="Scheduler" icon="📅" active={!onProjects} />
+      <NavTab href="/projects" label="Projects" icon="🎯" active={onProjects} />
     </div>
   )
 }
 
-function NavTab({ href, label, active }: { href: string; label: string; active: boolean }) {
+function NavTab({ href, label, icon, active }: { href: string; label: string; icon: string; active: boolean }) {
   return (
     <Link
       href={href}
       style={{
-        padding: '0.3rem 0.875rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.375rem',
+        padding: '0.375rem 0.875rem',
         borderRadius: '0.375rem',
-        fontSize: '0.82rem',
-        fontWeight: active ? 600 : 400,
-        color: active ? 'white' : 'rgba(255,255,255,0.45)',
-        background: active ? 'rgba(102,126,234,0.25)' : 'transparent',
+        fontSize: '0.8rem',
+        fontWeight: active ? 700 : 400,
+        color: active ? 'white' : 'rgba(255,255,255,0.4)',
+        background: active ? 'rgba(232,93,123,0.18)' : 'transparent',
         textDecoration: 'none',
-        border: active ? '1px solid rgba(102,126,234,0.4)' : '1px solid transparent',
-        transition: 'all 0.1s',
+        border: active ? '1px solid rgba(232,93,123,0.35)' : '1px solid transparent',
+        transition: 'all 0.12s',
       }}
     >
+      <span style={{ fontSize: '0.75rem' }}>{icon}</span>
       {label}
     </Link>
   )

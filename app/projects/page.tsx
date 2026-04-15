@@ -1,9 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import KanbanBoard from './_components/KanbanBoard'
-import ArtPipeline from './_components/ArtPipeline'
-import StandardBoard from './_components/StandardBoard'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 interface Project {
   id: string
@@ -11,217 +10,330 @@ interface Project {
   description: string | null
   team: string | null
   type: string
+  color: string
   owner_id: string
   created_at: string
 }
 
-interface Task {
-  id: string
-  title: string
-  description: string | null
-  status: string
-  priority: string
-  assignee_id: string | null
-  due_date: string | null
-  stage: string | null
-  external_url: string | null
-  embed_url: string | null
-  sprint_id: string | null
-  milestone_id: string | null
-}
-
 const BOARD_TYPES = [
-  { id: 'kanban',       label: 'Kanban',       desc: 'For Engineers — columns with drag-and-drop', emoji: '⬛' },
-  { id: 'art_pipeline', label: 'Art Pipeline', desc: 'For Artists — stage-based asset workflow',   emoji: '🎨' },
-  { id: 'standard',     label: 'Standard PM',  desc: 'Roadmap, milestones, sprints, task table',   emoji: '📋' },
+  {
+    id: 'kanban',
+    label: 'Kanban Board',
+    shortLabel: 'Kanban',
+    emoji: '⬛',
+    desc: 'Columns for each stage — Backlog, To Do, In Progress, Review, Done. Drag tasks across. Best for engineers.',
+    color: '#3b82f6',
+  },
+  {
+    id: 'art_pipeline',
+    label: 'Art Pipeline',
+    shortLabel: 'Art Pipeline',
+    emoji: '🎨',
+    desc: 'Stage-based flow — Concept → Rough Draft → WIP → Review → Final. Built for artists & creative work.',
+    color: '#8b5cf6',
+  },
+  {
+    id: 'standard',
+    label: 'Standard PM',
+    shortLabel: 'Standard PM',
+    emoji: '📋',
+    desc: 'Task list, milestones, and sprint planning. Flexible for any role — designers, producers, sound designers.',
+    color: '#10b981',
+  },
 ]
 
+const PROJECT_COLORS = ['#e85d7b', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899']
+
 export default function ProjectsPage() {
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
-  const [activeProject, setActiveProject] = useState<Project | null>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDesc, setNewDesc] = useState('')
-  const [newType, setNewType] = useState('standard')
+  const [apiError, setApiError] = useState<string | null>(null)
+
+  // Form state
+  const [step, setStep] = useState<1 | 2>(1)
+  const [name, setName] = useState('')
+  const [desc, setDesc] = useState('')
+  const [type, setType] = useState('standard')
+  const [color, setColor] = useState('#e85d7b')
+  const [team, setTeam] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/projects')
       .then(r => r.json())
-      .then(d => { setProjects(d.projects ?? []); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(d => {
+        if (d.error) setApiError(d.error)
+        else setProjects(d.projects ?? [])
+        setLoading(false)
+      })
+      .catch(() => { setApiError('Could not connect to database'); setLoading(false) })
   }, [])
 
-  useEffect(() => {
-    if (!activeProject) { setTasks([]); return }
-    fetch(`/api/projects/${activeProject.id}/tasks`)
-      .then(r => r.json())
-      .then(d => setTasks(d.tasks ?? []))
-      .catch(() => {})
-  }, [activeProject])
+  const openCreate = () => { setCreating(true); setStep(1); setName(''); setDesc(''); setType('standard'); setColor('#e85d7b'); setTeam(''); setFormError(null) }
+  const closeCreate = () => { setCreating(false); setFormError(null) }
 
-  const createProject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newName.trim()) return
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() || null, type: newType }),
-    })
-    if (res.ok) {
+  const createProject = async () => {
+    if (!name.trim()) { setFormError('Project name is required'); return }
+    setSubmitting(true); setFormError(null)
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, type, color, team: team || null }),
+      })
       const d = await res.json()
+      if (!res.ok) {
+        setFormError(d.error ?? 'Failed to create project')
+        return
+      }
       setProjects(prev => [d.project, ...prev])
-      setNewName(''); setNewDesc(''); setCreating(false)
-      setActiveProject(d.project)
+      closeCreate()
+      router.push(`/projects/${d.project.id}`)
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  if (activeProject) {
-    const Board = activeProject.type === 'kanban' ? KanbanBoard
-      : activeProject.type === 'art_pipeline' ? ArtPipeline
-      : StandardBoard
-
-    return (
-      <div>
-        {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+  return (
+    <div style={{ minHeight: 'calc(100vh - 52px)', background: '#f0f2f5' }}>
+      {/* Hero header */}
+      <div style={{ background: '#0d0d14', borderBottom: '1px solid rgba(232,93,123,0.15)', padding: '2rem' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Image src="/art/avatar.png" alt="Kato.8" width={48} height={48} style={{ imageRendering: 'pixelated' }} />
+            <div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, background: 'linear-gradient(135deg, #e85d7b 0%, #ff8fab 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Projects
+              </h1>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', margin: 0 }}>
+                {projects.length} project{projects.length !== 1 ? 's' : ''} · Production management for Kato.8 Studios
+              </p>
+            </div>
+          </div>
           <button
-            onClick={() => setActiveProject(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#667eea', fontSize: '0.875rem', fontFamily: 'inherit', padding: 0, fontWeight: 600 }}
+            onClick={openCreate}
+            style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(232,93,123,0.4)' }}
           >
-            ← Projects
+            <span style={{ fontSize: '1.1rem' }}>+</span> New Project
           </button>
-          <span style={{ color: '#cbd5e1' }}>/</span>
-          <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>{activeProject.name}</span>
-          <span style={{
-            padding: '2px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 700, marginLeft: '0.25rem',
-            background: activeProject.type === 'kanban' ? '#eef2ff' : activeProject.type === 'art_pipeline' ? '#fdf4ff' : '#f0fdf4',
-            color: activeProject.type === 'kanban' ? '#4338ca' : activeProject.type === 'art_pipeline' ? '#7c3aed' : '#16a34a',
-          }}>
-            {BOARD_TYPES.find(b => b.id === activeProject.type)?.label ?? activeProject.type}
-          </span>
         </div>
+      </div>
 
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.25rem' }}>{activeProject.name}</h2>
-        {activeProject.description && (
-          <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.25rem' }}>{activeProject.description}</p>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem' }}>
+        {/* DB setup warning */}
+        {apiError && (
+          <div style={{ background: '#fff8f1', border: '1px solid #fed7aa', borderRadius: '0.75rem', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Database not set up</div>
+              <div style={{ color: '#b45309', fontSize: '0.82rem' }}>
+                Run <code style={{ background: '#fef3c7', padding: '1px 5px', borderRadius: '3px', fontFamily: 'monospace' }}>supabase/migrations/002_projects_and_teams.sql</code> in your Supabase SQL editor to create the projects tables.
+              </div>
+            </div>
+          </div>
         )}
 
-        <Board projectId={activeProject.id} tasks={tasks} onTasksChange={setTasks} />
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: '#6b778c', fontSize: '0.875rem' }}>Loading…</div>
+        ) : projects.length === 0 && !apiError ? (
+          /* Empty state */
+          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <Image src="/art/avatar.png" alt="Kato" width={80} height={80} style={{ imageRendering: 'pixelated', marginBottom: '1rem', opacity: 0.7 }} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#172b4d', marginBottom: '0.5rem' }}>No projects yet</h2>
+            <p style={{ color: '#6b778c', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: 400, margin: '0 auto 1.5rem' }}>
+              Create your first project and pick a board type built for your role.
+            </p>
+            <button onClick={openCreate} style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(232,93,123,0.3)' }}>
+              Create your first project
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+            {projects.map(p => <ProjectCard key={p.id} project={p} onClick={() => router.push(`/projects/${p.id}`)} />)}
+          </div>
+        )}
       </div>
-    )
-  }
 
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Projects</h2>
-          <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>Manage production work with role-based views.</p>
-        </div>
-        <button
-          onClick={() => setCreating(c => !c)}
-          style={{ padding: '0.5rem 1.25rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}
-        >
-          + New project
-        </button>
-      </div>
-
-      {/* New project form */}
+      {/* Create project modal */}
       {creating && (
-        <div style={{ background: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '1.5rem', marginBottom: '1.5rem', maxWidth: 520 }}>
-          <form onSubmit={createProject} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>New Project</h3>
-            <label style={lbl}>
-              Project name *
-              <input required value={newName} onChange={e => setNewName(e.target.value)} placeholder="My awesome project" style={inp} />
-            </label>
-            <label style={lbl}>
-              Description
-              <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Optional" style={inp} />
-            </label>
-            <div>
-              <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Board type</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                {BOARD_TYPES.map(bt => (
-                  <label
-                    key={bt.id}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer',
-                      padding: '0.625rem 0.875rem', borderRadius: '0.5rem',
-                      border: newType === bt.id ? '2px solid #667eea' : '1px solid #e2e8f0',
-                      background: newType === bt.id ? '#f5f7ff' : 'white',
-                    }}
-                  >
-                    <input type="radio" name="boardType" value={bt.id} checked={newType === bt.id} onChange={() => setNewType(bt.id)} style={{ marginTop: '2px', accentColor: '#667eea' }} />
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#1e293b' }}>{bt.emoji} {bt.label}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{bt.desc}</div>
-                    </div>
-                  </label>
-                ))}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: '1rem' }}>
+          <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+            {/* Modal header */}
+            <div style={{ background: '#0d0d14', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1.05rem', margin: 0 }}>
+                  {step === 1 ? 'Create a project' : 'Choose your board type'}
+                </h2>
+                <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.5rem' }}>
+                  {[1, 2].map(s => (
+                    <div key={s} style={{ height: 3, width: 32, borderRadius: '999px', background: step >= s ? '#e85d7b' : 'rgba(255,255,255,0.15)', transition: 'background 0.2s' }} />
+                  ))}
+                </div>
               </div>
+              <button onClick={closeCreate} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: '1.3rem', lineHeight: 1 }}>×</button>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setCreating(false)} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>
-                Cancel
-              </button>
-              <button type="submit" style={{ padding: '0.5rem 1.25rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Create
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
-      {/* Project list */}
-      {loading ? (
-        <p style={{ color: '#64748b' }}>Loading…</p>
-      ) : projects.length === 0 ? (
-        <div style={{ background: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '3rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📋</div>
-          <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>No projects yet. Create one to get started.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
-          {projects.map(p => {
-            const bt = BOARD_TYPES.find(b => b.id === p.type)
-            return (
-              <div
-                key={p.id}
-                onClick={() => setActiveProject(p)}
-                style={{
-                  background: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  padding: '1.25rem', cursor: 'pointer', border: '1px solid transparent',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = '#667eea')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>{p.name}</span>
-                  <span style={{
-                    padding: '2px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 700, flexShrink: 0,
-                    background: p.type === 'kanban' ? '#eef2ff' : p.type === 'art_pipeline' ? '#fdf4ff' : '#f0fdf4',
-                    color: p.type === 'kanban' ? '#4338ca' : p.type === 'art_pipeline' ? '#7c3aed' : '#16a34a',
-                  }}>
-                    {bt?.emoji} {bt?.label ?? p.type}
-                  </span>
+            <div style={{ padding: '1.5rem' }}>
+              {step === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+                  <label style={lbl}>
+                    Project name *
+                    <input
+                      autoFocus
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && name.trim() && setStep(2)}
+                      placeholder="e.g. Season 2 Art Assets"
+                      style={inp}
+                    />
+                  </label>
+                  <label style={lbl}>
+                    Description
+                    <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What is this project about?" style={inp} />
+                  </label>
+                  <label style={lbl}>
+                    Team (optional)
+                    <select value={team} onChange={e => setTeam(e.target.value)} style={inp}>
+                      <option value="">— No team —</option>
+                      {['Corebound', 'Last Light', 'BBCU', 'Studio'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.5rem' }}>Project color</div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {PROJECT_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setColor(c)}
+                          style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: color === c ? '3px solid white' : '3px solid transparent', boxShadow: color === c ? `0 0 0 2px ${c}` : 'none', cursor: 'pointer', transition: 'all 0.1s', padding: 0 }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {formError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{formError}</p>}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+                    <button onClick={() => { if (!name.trim()) { setFormError('Project name is required'); return }; setFormError(null); setStep(2) }} style={pinkBtn}>
+                      Next →
+                    </button>
+                  </div>
                 </div>
-                {p.description && <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 0.5rem' }}>{p.description}</p>}
-                {p.team && <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Team: {p.team}</span>}
-                <div style={{ fontSize: '0.7rem', color: '#cbd5e1', marginTop: '0.5rem' }}>
-                  Created {new Date(p.created_at).toLocaleDateString()}
+              )}
+
+              {step === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <p style={{ color: '#6b778c', fontSize: '0.82rem', margin: 0 }}>
+                    Choose how you want to organize work. You can always switch later.
+                  </p>
+                  {BOARD_TYPES.map(bt => (
+                    <label
+                      key={bt.id}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer',
+                        padding: '0.875rem 1rem', borderRadius: '0.75rem',
+                        border: type === bt.id ? `2px solid ${bt.color}` : '2px solid #e2e8f0',
+                        background: type === bt.id ? bt.color + '0a' : 'white',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <input type="radio" name="bt" value={bt.id} checked={type === bt.id} onChange={() => setType(bt.id)} style={{ accentColor: bt.color, marginTop: '3px', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '1rem' }}>{bt.emoji}</span>
+                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#172b4d' }}>{bt.label}</span>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: bt.color, background: bt.color + '18', padding: '1px 6px', borderRadius: '3px' }}>
+                            {bt.id === 'kanban' ? 'Engineers' : bt.id === 'art_pipeline' ? 'Artists' : 'All roles'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.78rem', color: '#6b778c', margin: 0, lineHeight: 1.4 }}>{bt.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+
+                  {formError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{formError}</p>}
+
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', paddingTop: '0.5rem' }}>
+                    <button onClick={() => setStep(1)} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>
+                      ← Back
+                    </button>
+                    <button
+                      onClick={createProject}
+                      disabled={submitting}
+                      style={{ ...pinkBtn, opacity: submitting ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    >
+                      {submitting ? 'Creating…' : `Create ${BOARD_TYPES.find(b => b.id === type)?.shortLabel ?? 'Project'} →`}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-const lbl: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }
-const inp: React.CSSProperties = { padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', fontFamily: 'inherit', color: '#1e293b', outline: 'none' }
+function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+  const [hov, setHov] = useState(false)
+  const bt = BOARD_TYPES.find(b => b.id === project.type)
+  const col = project.color ?? '#e85d7b'
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: 'white',
+        borderRadius: '0.875rem',
+        border: `2px solid ${hov ? col : '#e2e8f0'}`,
+        padding: 0,
+        cursor: 'pointer',
+        boxShadow: hov ? `0 8px 24px ${col}20` : '0 1px 3px rgba(0,0,0,0.06)',
+        transform: hov ? 'translateY(-2px)' : 'none',
+        transition: 'all 0.15s',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Color band */}
+      <div style={{ height: 6, background: `linear-gradient(90deg, ${col}, ${col}88)` }} />
+
+      <div style={{ padding: '1.125rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.625rem' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '0.5rem', background: col + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
+            {bt?.emoji ?? '📋'}
+          </div>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: bt ? '#6b778c' : '#94a3b8', background: '#f1f5f9', padding: '2px 7px', borderRadius: '999px', alignSelf: 'flex-start' }}>
+            {bt?.shortLabel ?? project.type}
+          </span>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#172b4d', marginBottom: '0.375rem', lineHeight: 1.3 }}>
+          {project.name}
+        </div>
+        {project.description && (
+          <p style={{ fontSize: '0.78rem', color: '#6b778c', margin: '0 0 0.625rem', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {project.description}
+          </p>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {project.team && (
+            <span style={{ fontSize: '0.68rem', color: '#6b778c', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{project.team}</span>
+          )}
+          <span style={{ fontSize: '0.68rem', color: '#94a3b8', marginLeft: 'auto' }}>
+            {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const lbl: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.82rem', fontWeight: 700, color: '#374151' }
+const inp: React.CSSProperties = { padding: '0.625rem 0.875rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', fontFamily: 'inherit', color: '#172b4d', outline: 'none', width: '100%', boxSizing: 'border-box' }
+const pinkBtn: React.CSSProperties = { padding: '0.5rem 1.25rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(232,93,123,0.3)' }

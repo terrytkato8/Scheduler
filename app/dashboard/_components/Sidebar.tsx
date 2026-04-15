@@ -47,9 +47,9 @@ export default function Sidebar({ displayName, isAdmin }: { displayName: string;
 
   return (
     <aside style={{
-      width: '228px', minHeight: '100vh', background: '#1e293b',
+      width: '228px', background: '#1e293b',
       display: 'flex', flexDirection: 'column', flexShrink: 0,
-      position: 'sticky', top: 0, height: '100vh',
+      position: 'sticky', top: 0, height: 'calc(100vh - 52px)',
     }}>
       {/* Brand */}
       <div style={{ padding: '1.25rem 1.25rem 0.875rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>

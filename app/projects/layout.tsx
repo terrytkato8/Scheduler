@@ -7,10 +7,10 @@ export default async function ProjectsLayout({ children }: { children: React.Rea
   if (!userId) redirect('/sign-in')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f0f2f5' }}>
       <AppNav />
       <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-        <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>{children}</main>
+        {children}
       </div>
     </div>
   )

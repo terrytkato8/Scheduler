@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS projects (
   description text,
   team        text,
   type        text NOT NULL DEFAULT 'standard',  -- 'kanban' | 'art_pipeline' | 'standard'
+  color       text NOT NULL DEFAULT '#e85d7b',
   owner_id    text NOT NULL,
   member_ids  text[] DEFAULT '{}',
   created_at  timestamptz NOT NULL DEFAULT now(),
