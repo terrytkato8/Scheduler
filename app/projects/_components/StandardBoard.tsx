@@ -248,6 +248,7 @@ export default function StandardBoard({ projectId, tasks, onTasksChange }: Props
       <TaskDrawer
         task={drawerTask}
         projectId={projectId}
+        allTasks={tasks}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
         onClose={() => setDrawerTask(null)}

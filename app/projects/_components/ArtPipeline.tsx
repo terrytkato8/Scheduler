@@ -173,6 +173,7 @@ export default function ArtPipeline({ projectId, tasks, onTasksChange }: Props) 
       <TaskDrawer
         task={drawerTask}
         projectId={projectId}
+        allTasks={tasks}
         onUpdate={updated => { onTasksChange(tasks.map(t => t.id === updated.id ? updated : t)); setDrawerTask(updated) }}
         onDelete={id => { onTasksChange(tasks.filter(t => t.id !== id)); setDrawerTask(null) }}
         onClose={() => setDrawerTask(null)}

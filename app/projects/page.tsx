@@ -207,9 +207,9 @@ export default function ProjectsPage() {
                     <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What is this project about?" style={inp} />
                   </label>
                   <label style={lbl}>
-                    Team (optional)
+                    Department (optional)
                     <select value={team} onChange={e => setTeam(e.target.value)} style={inp}>
-                      <option value="">— No team —</option>
+                      <option value="">— No department —</option>
                       {['Corebound', 'Last Light', 'BBCU', 'Studio'].map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </label>

@@ -103,7 +103,7 @@ export default function ProjectWorkspacePage() {
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: project.color, background: project.color + '18', padding: '2px 8px', borderRadius: '999px', border: `1px solid ${project.color}40` }}>
                   {bt.label}
                 </span>
-                {project.team && <span style={{ fontSize: '0.72rem', color: '#6b778c', background: '#f1f5f9', padding: '2px 8px', borderRadius: '999px' }}>{project.team}</span>}
+                {project.team && <span style={{ fontSize: '0.72rem', color: '#6b778c', background: '#f1f5f9', padding: '2px 8px', borderRadius: '999px' }}>Dept: {project.team}</span>}
                 {project.description && <span style={{ fontSize: '0.78rem', color: '#6b778c' }}>{project.description}</span>}
               </div>
             </div>

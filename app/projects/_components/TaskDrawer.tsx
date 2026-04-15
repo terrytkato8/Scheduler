@@ -21,6 +21,7 @@ export interface Task {
   embed_url: string | null
   sprint_id: string | null
   milestone_id: string | null
+  depends_on: string[] | null
   project_id: string
   created_at?: string
 }
@@ -28,6 +29,7 @@ export interface Task {
 interface Props {
   task: Task | null
   projectId: string
+  allTasks: Task[]
   onUpdate: (task: Task) => void
   onDelete: (id: string) => void
   onClose: () => void
@@ -52,7 +54,7 @@ const PRIORITY_ICON: Record<string, string> = {
   low: '↓', medium: '→', high: '↑', critical: '⚡',
 }
 
-export default function TaskDrawer({ task, projectId, onUpdate, onDelete, onClose }: Props) {
+export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDelete, onClose }: Props) {
   const [editTitle, setEditTitle] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -63,6 +65,7 @@ export default function TaskDrawer({ task, projectId, onUpdate, onDelete, onClos
   const [externalUrl, setExternalUrl] = useState('')
   const [embedUrl, setEmbedUrl] = useState('')
   const [showEmbed, setShowEmbed] = useState(false)
+  const [dependsOn, setDependsOn] = useState<string[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [saving, setSaving] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
@@ -81,6 +84,7 @@ export default function TaskDrawer({ task, projectId, onUpdate, onDelete, onClos
     setDueDate(task.due_date ?? '')
     setExternalUrl(task.external_url ?? '')
     setEmbedUrl(task.embed_url ?? '')
+    setDependsOn(task.depends_on ?? [])
     setEditTitle(false)
     setShowEmbed(false)
   }, [task?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -109,6 +113,19 @@ export default function TaskDrawer({ task, projectId, onUpdate, onDelete, onClos
     if (!task || !confirm('Delete this task? This cannot be undone.')) return
     await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' })
     onDelete(task.id)
+  }
+
+  const addDep = (depId: string) => {
+    if (!depId || dependsOn.includes(depId)) return
+    const next = [...dependsOn, depId]
+    setDependsOn(next)
+    save({ depends_on: next })
+  }
+
+  const removeDep = (depId: string) => {
+    const next = dependsOn.filter(d => d !== depId)
+    setDependsOn(next)
+    save({ depends_on: next })
   }
 
   if (!task) return null
@@ -240,6 +257,49 @@ export default function TaskDrawer({ task, projectId, onUpdate, onDelete, onClos
                 style={metaSelect}
               />
             </div>
+          </div>
+
+          {/* Dependencies */}
+          <div>
+            <div style={metaLabel}>Depends on</div>
+            {/* Chips for existing dependencies */}
+            {dependsOn.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.5rem' }}>
+                {dependsOn.map(depId => {
+                  const depTask = allTasks.find(t => t.id === depId)
+                  if (!depTask) return null
+                  const pc = PRIORITY_COLOR[depTask.priority] ?? '#94a3b8'
+                  return (
+                    <span key={depId} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.5rem 0.2rem 0.625rem', background: '#f8fafc', border: `1px solid ${pc}40`, borderLeft: `3px solid ${pc}`, borderRadius: '0.375rem', fontSize: '0.75rem', color: '#172b4d', maxWidth: 220 }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{depTask.title}</span>
+                      <button
+                        onClick={() => removeDep(depId)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1, padding: '0 1px', flexShrink: 0 }}
+                        title="Remove dependency"
+                      >×</button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            {/* Add dependency select */}
+            <select
+              value=""
+              onChange={e => { addDep(e.target.value); e.target.value = '' }}
+              style={{ ...metaSelect, color: '#94a3b8' }}
+            >
+              <option value="">+ Add dependency…</option>
+              {allTasks
+                .filter(t => t.id !== task.id && !dependsOn.includes(t.id))
+                .map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+            </select>
+            {dependsOn.length > 0 && (
+              <p style={{ fontSize: '0.68rem', color: '#94a3b8', margin: '0.3rem 0 0' }}>
+                This task is blocked until the above tasks are complete.
+              </p>
+            )}
           </div>
 
           {/* External link */}
