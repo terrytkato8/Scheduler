@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
     display_name?: string
     role?: string
     teams?: string[]
+    discord_username?: string | null
+    discord_user_id?: string | null
     request_team_lead?: boolean
   }
   try { body = await req.json() }
@@ -67,6 +69,8 @@ export async function POST(req: NextRequest) {
         role: body.role ?? null,
         team: primaryTeam,
         teams: body.teams ?? [],
+        discord_username: body.discord_username ?? null,
+        discord_user_id: body.discord_user_id ?? null,
         team_lead_requested: body.request_team_lead ?? existing?.team_lead_requested ?? false,
         updated_at: new Date().toISOString(),
       },

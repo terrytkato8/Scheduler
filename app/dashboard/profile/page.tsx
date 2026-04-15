@@ -12,6 +12,8 @@ interface Profile {
   teams: string[] | null
   team_lead_requested: boolean
   team_lead_approved: boolean
+  discord_username: string | null
+  discord_user_id: string | null
 }
 
 export default function ProfilePage() {
@@ -19,6 +21,8 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState('')
   const [role, setRole] = useState('')
   const [teams, setTeams] = useState<string[]>([])
+  const [discordUsername, setDiscordUsername] = useState('')
+  const [discordUserId, setDiscordUserId] = useState('')
   const [requestLead, setRequestLead] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
@@ -33,6 +37,8 @@ export default function ProfilePage() {
         setRole(p.role ?? '')
         const t = p.teams ?? (p.team ? [p.team] : [])
         setTeams(t)
+        setDiscordUsername(p.discord_username ?? '')
+        setDiscordUserId(p.discord_user_id ?? '')
       })
   }, [])
 
@@ -51,6 +57,8 @@ export default function ProfilePage() {
           display_name: displayName.trim() || null,
           role: role || null,
           teams,
+          discord_username: discordUsername.trim() || null,
+          discord_user_id: discordUserId.trim() || null,
           request_team_lead: requestLead,
         }),
       })
@@ -125,6 +133,38 @@ export default function ProfilePage() {
             {teams.length === 0 && (
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.35rem' }}>Select at least one team.</p>
             )}
+          </div>
+
+          {/* Discord */}
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#374151', marginBottom: '0.625rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '1rem' }}>🎮</span> Discord (for meeting alerts)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <label style={lbl}>
+                Discord username
+                <input
+                  type="text"
+                  value={discordUsername}
+                  onChange={e => setDiscordUsername(e.target.value)}
+                  placeholder="e.g. username (no @ needed)"
+                  style={inp}
+                />
+              </label>
+              <label style={lbl}>
+                Discord user ID
+                <input
+                  type="text"
+                  value={discordUserId}
+                  onChange={e => setDiscordUserId(e.target.value)}
+                  placeholder="e.g. 123456789012345678"
+                  style={inp}
+                />
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 400 }}>
+                  Enables direct @mention pings. Find yours in Discord › Settings › Advanced › Developer Mode, then right-click your name.
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* Team lead request */}

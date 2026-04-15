@@ -17,6 +17,22 @@ export default function AdminPanel() {
   const [requests, setRequests] = useState<Request[]>([])
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState<string | null>(null)
+  const [testingDiscord, setTestingDiscord] = useState(false)
+  const [discordTestResult, setDiscordTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const sendTestAlert = async () => {
+    setTestingDiscord(true)
+    setDiscordTestResult(null)
+    try {
+      const res = await fetch('/api/discord/test-alert', { method: 'POST' })
+      const d = await res.json()
+      setDiscordTestResult({ ok: res.ok, msg: d.message ?? d.error ?? String(res.status) })
+    } catch (e) {
+      setDiscordTestResult({ ok: false, msg: String(e) })
+    } finally {
+      setTestingDiscord(false)
+    }
+  }
 
   const load = () => {
     fetch('/api/admin/team-lead-requests')
@@ -48,6 +64,32 @@ export default function AdminPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 640 }}>
+      {/* Discord alerts */}
+      <div style={{ background: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b' }}>🎮 Discord Meeting Alerts</span>
+        </div>
+        <div style={{ padding: '1.25rem' }}>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1rem' }}>
+            Sends a test message to your configured Discord webhook. Make sure <code style={{ background: '#f1f5f9', padding: '1px 5px', borderRadius: '3px', fontSize: '0.8rem' }}>DISCORD_WEBHOOK_URL</code> is set in your Vercel environment variables.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={sendTestAlert}
+              disabled={testingDiscord}
+              style={{ padding: '0.5rem 1.125rem', background: '#5865f2', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', opacity: testingDiscord ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              {testingDiscord ? '⏳ Sending…' : '🔔 Send test alert'}
+            </button>
+            {discordTestResult && (
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: discordTestResult.ok ? '#16a34a' : '#dc2626' }}>
+                {discordTestResult.ok ? '✅' : '❌'} {discordTestResult.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Pending */}
       <div style={{ background: 'white', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
