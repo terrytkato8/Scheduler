@@ -205,32 +205,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ sent: 0, message: 'All alerts already sent' })
     }
 
-    // Fetch invites + profiles for all pending meetings
+    // Fetch invites first, then profiles (profiles need invite user IDs)
     const meetingIds = [...new Set(pending.map(a => a.meeting.id))]
     const organizerIds = [...new Set(pending.map(a => a.meeting.organizer_id))]
 
-    const [{ data: invites }, { data: inviteProfiles }] = await Promise.all([
-      supabase
-        .from('meeting_invites')
-        .select('meeting_id, user_id, display_name')
-        .in('meeting_id', meetingIds),
-      supabase
-        .from('profiles')
-        .select('user_id, display_name, discord_username, discord_user_id')
-        .in('user_id', [...organizerIds, ...((invites ?? []).map((i: { user_id: string }) => i.user_id))]),
-    ])
+    const { data: invites } = await supabase
+      .from('meeting_invites')
+      .select('meeting_id, user_id, display_name')
+      .in('meeting_id', meetingIds)
 
-    // Second query for invite profiles with actual invite user IDs
-    const allUserIds = [
+    const allUserIds = [...new Set([
       ...organizerIds,
       ...(invites ?? []).map((i: { user_id: string }) => i.user_id),
-    ]
+    ])]
+
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, display_name, discord_username, discord_user_id')
-      .in('user_id', [...new Set(allUserIds)])
-
-    void inviteProfiles // used above for typing
+      .in('user_id', allUserIds)
 
     // Send alerts
     let sentCount = 0
