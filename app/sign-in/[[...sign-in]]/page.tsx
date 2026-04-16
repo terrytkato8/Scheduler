@@ -25,7 +25,7 @@ export default function SignInPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     if (!isLoaded) return
     setLoading(true)
@@ -48,7 +48,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleForgot = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleForgot = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     if (!isLoaded) return
     setLoading(true)
@@ -67,7 +67,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleReset = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleReset = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     if (!isLoaded) return
     if (newPassword !== confirmPassword) {
@@ -98,7 +98,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleMfa = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleMfa = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     if (!isLoaded) return
     setLoading(true)
@@ -130,15 +130,21 @@ export default function SignInPage() {
       <div style={s.page}>
         <div style={s.card}>
           <h1 style={s.title}>Two-factor auth</h1>
-          <p style={s.sub}>Enter the code from your authenticator app or SMS.</p>
+          <p style={s.sub}>Enter the 6-digit code from your authenticator app.</p>
+
+          {/* Info banner */}
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.5 }}>
+            <strong>Want to use email instead?</strong><br />
+            Go to your <strong>Clerk Dashboard → Configure → Multi-factor</strong> and disable MFA, then remove the MFA device from your profile. Email + password will work on its own.
+          </div>
 
           <form onSubmit={handleMfa} style={s.form}>
             <label style={s.label}>
-              Verification code
+              Authenticator code
               <input
                 type="text" required autoFocus inputMode="numeric" maxLength={6}
                 value={mfaCode} onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                style={{ ...s.input, letterSpacing: '0.25em', fontSize: '1.25rem', textAlign: 'center' }}
+                style={{ ...s.input, letterSpacing: '0.3em', fontSize: '1.4rem', textAlign: 'center' }}
                 placeholder="000000"
               />
             </label>
