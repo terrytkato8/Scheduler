@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useSignIn } from '@clerk/nextjs'
 import Link from 'next/link'
 
-type Stage = 'signin' | 'forgot' | 'reset'
+type Stage = 'signin' | 'forgot' | 'reset' | 'mfa'
 
 export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn()
@@ -13,6 +13,9 @@ export default function SignInPage() {
   // Sign-in fields
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+
+  // MFA fields
+  const [mfaCode, setMfaCode] = useState('')
 
   // Reset fields
   const [resetCode, setResetCode] = useState('')
@@ -32,8 +35,9 @@ export default function SignInPage() {
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
         window.location.href = '/dashboard'
+      } else if (result.status === 'needs_second_factor') {
+        setStage('mfa')
       } else {
-        // Unexpected status — surface it so we can debug
         setError(`Sign-in incomplete (status: ${result.status}). Please contact support.`)
       }
     } catch (err: unknown) {
@@ -92,6 +96,68 @@ export default function SignInPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleMfa = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!isLoaded) return
+    setLoading(true)
+    setError('')
+    try {
+      // Try TOTP first, fall back to phone_code
+      let result
+      try {
+        result = await signIn.attemptSecondFactor({ strategy: 'totp', code: mfaCode })
+      } catch {
+        result = await signIn.attemptSecondFactor({ strategy: 'phone_code', code: mfaCode })
+      }
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId })
+        window.location.href = '/dashboard'
+      } else {
+        setError('Verification failed. Please try again.')
+      }
+    } catch (err: unknown) {
+      const e = err as { errors?: { message: string }[] }
+      setError(e.errors?.[0]?.message ?? 'Invalid code. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (stage === 'mfa') {
+    return (
+      <div style={s.page}>
+        <div style={s.card}>
+          <h1 style={s.title}>Two-factor auth</h1>
+          <p style={s.sub}>Enter the code from your authenticator app or SMS.</p>
+
+          <form onSubmit={handleMfa} style={s.form}>
+            <label style={s.label}>
+              Verification code
+              <input
+                type="text" required autoFocus inputMode="numeric" maxLength={6}
+                value={mfaCode} onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                style={{ ...s.input, letterSpacing: '0.25em', fontSize: '1.25rem', textAlign: 'center' }}
+                placeholder="000000"
+              />
+            </label>
+
+            {error && <p style={s.error}>{error}</p>}
+
+            <button type="submit" disabled={loading || !isLoaded} style={s.btn}>
+              {loading ? 'Verifying…' : 'Verify'}
+            </button>
+          </form>
+
+          <p style={s.footer}>
+            <button onClick={() => { setStage('signin'); setMfaCode(''); setError('') }} style={s.backBtn}>
+              ← Back to sign in
+            </button>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (stage === 'forgot') {
