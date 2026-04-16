@@ -210,7 +210,7 @@ export default function ProjectsPage() {
                     Department (optional)
                     <select value={team} onChange={e => setTeam(e.target.value)} style={inp}>
                       <option value="">— No department —</option>
-                      {['Corebound', 'Last Light', 'BBCU', 'Studio'].map(t => <option key={t} value={t}>{t}</option>)}
+                      {['Engineering', 'Development', 'Art', 'Sound', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </label>
                   <div>
