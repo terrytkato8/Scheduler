@@ -2,14 +2,12 @@
 
 import React, { useState } from 'react'
 import { useSignIn } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 type Stage = 'signin' | 'forgot' | 'reset'
 
 export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn()
-  const router = useRouter()
   const [stage, setStage] = useState<Stage>('signin')
 
   // Sign-in fields
@@ -33,7 +31,7 @@ export default function SignInPage() {
       const result = await signIn.create({ identifier: email, password })
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
       }
     } catch (err: unknown) {
       const e = err as { errors?: { message: string }[] }
@@ -83,7 +81,7 @@ export default function SignInPage() {
       })
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
       }
     } catch (err: unknown) {
       const e = err as { errors?: { message: string }[] }

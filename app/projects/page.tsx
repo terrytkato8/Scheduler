@@ -157,7 +157,18 @@ export default function ProjectsPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-            {projects.map(p => <ProjectCard key={p.id} project={p} onClick={() => router.push(`/projects/${p.id}`)} />)}
+            {projects.map(p => (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                onClick={() => router.push(`/projects/${p.id}`)}
+                onDelete={async () => {
+                  if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return
+                  const res = await fetch(`/api/projects/${p.id}`, { method: 'DELETE' })
+                  if (res.ok) setProjects(prev => prev.filter(x => x.id !== p.id))
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -289,7 +300,7 @@ export default function ProjectsPage() {
   )
 }
 
-function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+function ProjectCard({ project, onClick, onDelete }: { project: Project; onClick: () => void; onDelete: () => void }) {
   const [hov, setHov] = useState(false)
   const bt = BOARD_TYPES.find(b => b.id === project.type)
   const col = project.color ?? '#e85d7b'
@@ -309,17 +320,35 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
         transform: hov ? 'translateY(-2px)' : 'none',
         transition: 'all 0.15s',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
       {/* Color band */}
       <div style={{ height: 6, background: `linear-gradient(90deg, ${col}, ${col}88)` }} />
+
+      {/* Delete button */}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        title="Delete project"
+        style={{
+          position: 'absolute', top: 14, right: 10,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: '#cbd5e1', fontSize: '1rem', lineHeight: 1, padding: '2px 4px',
+          borderRadius: '4px', transition: 'color 0.1s',
+          zIndex: 1,
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#cbd5e1')}
+      >
+        🗑
+      </button>
 
       <div style={{ padding: '1.125rem' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.625rem' }}>
           <div style={{ width: 36, height: 36, borderRadius: '0.5rem', background: col + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
             {bt?.emoji ?? '📋'}
           </div>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: bt ? '#6b778c' : '#94a3b8', background: '#f1f5f9', padding: '2px 7px', borderRadius: '999px', alignSelf: 'flex-start' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: bt ? '#6b778c' : '#94a3b8', background: '#f1f5f9', padding: '2px 7px', borderRadius: '999px', alignSelf: 'flex-start', marginRight: '1.5rem' }}>
             {bt?.shortLabel ?? project.type}
           </span>
         </div>

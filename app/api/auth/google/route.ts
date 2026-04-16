@@ -1,0 +1,27 @@
+import { auth } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
+
+export async function GET() {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!clientId || !appUrl) {
+    return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 503 })
+  }
+
+  const redirectUri = `${appUrl}/api/auth/google/callback`
+  const scope = 'https://www.googleapis.com/auth/calendar.readonly'
+
+  const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+  url.searchParams.set('client_id', clientId)
+  url.searchParams.set('redirect_uri', redirectUri)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('scope', scope)
+  url.searchParams.set('access_type', 'offline')
+  url.searchParams.set('prompt', 'consent')
+  url.searchParams.set('state', userId)
+
+  return NextResponse.redirect(url.toString())
+}

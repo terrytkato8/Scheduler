@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, FormEvent } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import MeetingBooker from './MeetingBooker'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -14,6 +15,7 @@ interface CalEvent {
   date: string
   start_hour?: number
   end_hour?: number
+  source?: 'google'
 }
 
 interface CalTask {
@@ -50,8 +52,13 @@ function fmtHour(h: number, m = 0) {
 
 export default function MonthCalendar({ userId: _userId }: { userId: string; displayName: string }) {
   const now = new Date()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [events, setEvents] = useState<CalEvent[]>([])
+  const [googleEvents, setGoogleEvents] = useState<CalEvent[]>([])
+  const [googleConnected, setGoogleConnected] = useState(false)
+  const [gcalStatus, setGcalStatus] = useState<'idle' | 'connected' | 'error' | 'disconnecting'>('idle')
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [myTasks, setMyTasks] = useState<CalTask[]>([])
   const [sel, setSel] = useState<string | null>(null)
@@ -71,9 +78,31 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
       .then(r => r.json()).then(d => setMeetings(d.meetings ?? [])).catch(() => {})
     fetch('/api/my-tasks')
       .then(r => r.json()).then(d => setMyTasks(d.tasks ?? [])).catch(() => {})
+    fetch(`/api/google-calendar/events?month=${monthStr}`)
+      .then(r => r.json())
+      .then(d => {
+        setGoogleConnected(d.connected ?? false)
+        setGoogleEvents(d.events ?? [])
+      })
+      .catch(() => {})
   }
 
   useEffect(() => { loadData() }, [monthStr]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle ?gcal= redirect after OAuth
+  useEffect(() => {
+    const gcal = searchParams.get('gcal')
+    if (gcal === 'connected') { setGcalStatus('connected'); router.replace('/dashboard/calendar') }
+    if (gcal === 'error') { setGcalStatus('error'); router.replace('/dashboard/calendar') }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const disconnectGoogle = async () => {
+    setGcalStatus('disconnecting')
+    await fetch('/api/google-calendar/events', { method: 'DELETE' })
+    setGoogleConnected(false)
+    setGoogleEvents([])
+    setGcalStatus('idle')
+  }
 
   const firstDow = new Date(y, m, 1).getDay()
   const daysInMonth = new Date(y, m + 1, 0).getDate()
@@ -84,7 +113,10 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
   while (cells.length % 7 !== 0) cells.push(null)
 
   const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate())
-  const eventsOn = (ds: string) => events.filter(e => e.date === ds)
+  const eventsOn = (ds: string) => [
+    ...events.filter(e => e.date === ds),
+    ...googleEvents.filter(e => e.date === ds),
+  ]
   const meetingsOn = (ds: string) => meetings.filter(mt => mt.date === ds)
   const tasksOn = (ds: string) => myTasks.filter(t => t.due_date === ds)
   const selEvents = sel ? eventsOn(sel) : []
@@ -205,17 +237,36 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
       )}
 
       {/* Header actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <button
-          onClick={exportICS}
-          title="Download this month's events as an .ics file to import into Google Calendar"
-          style={{ padding: '0.5rem 1rem', background: 'white', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Export to Google Cal
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {/* Google Calendar sync */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          {googleConnected ? (
+            <>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: '#16a34a', fontWeight: 600 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+                Google Calendar synced
+              </span>
+              <button
+                onClick={disconnectGoogle}
+                disabled={gcalStatus === 'disconnecting'}
+                style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}
+              >
+                {gcalStatus === 'disconnecting' ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+            </>
+          ) : (
+            <a
+              href="/api/auth/google"
+              style={{ padding: '0.45rem 0.875rem', background: 'white', color: '#374151', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Sync Google Calendar
+            </a>
+          )}
+          {gcalStatus === 'connected' && <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>✓ Connected!</span>}
+          {gcalStatus === 'error' && <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>Connection failed. Try again.</span>}
+        </div>
+
         <button
           onClick={() => setShowBooker(true)}
           style={{ padding: '0.5rem 1.25rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -275,7 +326,7 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
                       {day}
                     </div>
                     {dayEvs.slice(0, 1).map(ev => (
-                      <div key={ev.id} style={{ fontSize: '0.63rem', background: '#667eea', color: 'white', borderRadius: '3px', padding: '1px 4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div key={ev.id} style={{ fontSize: '0.63rem', background: ev.source === 'google' ? '#4285F4' : '#667eea', color: 'white', borderRadius: '3px', padding: '1px 4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ev.title}
                       </div>
                     ))}
@@ -340,12 +391,15 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
                 <div>
                   <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Events</div>
                   {selEvents.map(ev => (
-                    <div key={ev.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: '#f8fafc', borderRadius: '0.5rem', padding: '0.4rem 0.625rem', marginBottom: '0.375rem' }}>
+                    <div key={ev.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: ev.source === 'google' ? '#eff6ff' : '#f8fafc', borderLeft: ev.source === 'google' ? '3px solid #4285F4' : '3px solid transparent', borderRadius: '0.5rem', padding: '0.4rem 0.625rem', marginBottom: '0.375rem' }}>
                       <div>
                         <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#1e293b' }}>{ev.title}</div>
-                        {ev.start_hour && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{fmtHour(ev.start_hour)}{ev.end_hour ? ` – ${fmtHour(ev.end_hour)}` : ''}</div>}
+                        {ev.start_hour != null && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{fmtHour(ev.start_hour)}{ev.end_hour != null ? ` – ${fmtHour(ev.end_hour)}` : ''}</div>}
+                        {ev.source === 'google' && <div style={{ fontSize: '0.65rem', color: '#4285F4', fontWeight: 600, marginTop: '1px' }}>Google Calendar</div>}
                       </div>
-                      <button onClick={() => deleteEvent(ev.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>&times;</button>
+                      {ev.source !== 'google' && (
+                        <button onClick={() => deleteEvent(ev.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>&times;</button>
+                      )}
                     </div>
                   ))}
                 </div>
