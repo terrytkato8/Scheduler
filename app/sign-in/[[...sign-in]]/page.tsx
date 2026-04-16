@@ -32,6 +32,9 @@ export default function SignInPage() {
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
         window.location.href = '/dashboard'
+      } else {
+        // Unexpected status — surface it so we can debug
+        setError(`Sign-in incomplete (status: ${result.status}). Please contact support.`)
       }
     } catch (err: unknown) {
       const e = err as { errors?: { message: string }[] }
