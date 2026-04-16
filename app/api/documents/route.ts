@@ -7,19 +7,21 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = req.nextUrl
-  const game     = searchParams.get('game')
-  const parentId = searchParams.get('parent_id')
+  const game       = searchParams.get('game')
+  const parentId   = searchParams.get('parent_id')
+  const category   = searchParams.get('category')
 
   const supabase = createClient()
   let query = supabase
     .from('documents')
-    .select('id, title, game, parent_id, tags, author_name, created_at, updated_at, is_published')
+    .select('id, title, game, parent_id, tags, author_name, created_at, updated_at, is_published, category, subcategory')
     .eq('is_published', true)
     .order('updated_at', { ascending: false })
 
-  if (game)           query = query.eq('game', game)
+  if (game)                query = query.eq('game', game)
+  if (category && category !== 'All') query = query.eq('category', category)
   if (parentId === 'root') query = query.is('parent_id', null)
-  else if (parentId)  query = query.eq('parent_id', parentId)
+  else if (parentId)       query = query.eq('parent_id', parentId)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -50,6 +52,8 @@ export async function POST(req: NextRequest) {
       content:            body.content ?? '',
       game:               body.game ?? null,
       parent_id:          body.parent_id ?? null,
+      category:           body.category ?? 'General',
+      subcategory:        body.subcategory ?? null,
       tags:               body.tags ?? [],
       linked_project_ids: body.linked_project_ids ?? [],
       linked_ticket_ids:  body.linked_ticket_ids ?? [],

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface Ticket {
   id: string
@@ -55,6 +56,7 @@ function fmtId(type: string, num: number) {
 }
 
 export default function TicketsPage() {
+  const router = useRouter()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [gameFilter, setGameFilter] = useState('all')
@@ -95,11 +97,14 @@ export default function TicketsPage() {
       <div style={{ background: '#0d0d14', borderBottom: '1px solid rgba(232,93,123,0.15)', padding: '1.5rem 2rem' }}>
         <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
+            <button onClick={() => router.push('/projects')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', fontFamily: 'inherit', padding: 0, marginBottom: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              ← Projects
+            </button>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, background: 'linear-gradient(135deg,#e85d7b,#ff8fab)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Tickets
+              All Tickets
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', margin: 0 }}>
-              {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
+              {filtered.length} ticket{filtered.length !== 1 ? 's' : ''} across all projects
             </p>
           </div>
           <button

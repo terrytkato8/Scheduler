@@ -9,6 +9,8 @@ interface Document {
   content: string
   game: string | null
   parent_id: string | null
+  category: string
+  subcategory: string | null
   tags: string[]
   author_name: string | null
   last_editor_name: string | null
@@ -16,6 +18,15 @@ interface Document {
   linked_ticket_ids: string[]
   created_at: string
   updated_at: string
+}
+
+const CATEGORY_META: Record<string, { icon: string; color: string }> = {
+  'GDD':         { icon: '🎮', color: '#e85d7b' },
+  'TDD':         { icon: '⚙️', color: '#3b82f6' },
+  'Art Doc':     { icon: '🎨', color: '#8b5cf6' },
+  'Design Doc':  { icon: '✏️', color: '#f59e0b' },
+  'Process Doc': { icon: '📋', color: '#10b981' },
+  'General':     { icon: '📄', color: '#64748b' },
 }
 
 export default function DocEditorPage() {
@@ -29,6 +40,8 @@ export default function DocEditorPage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [tags, setTags] = useState('')
+  const [category, setCategory] = useState('General')
+  const [subcategory, setSubcategory] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -40,6 +53,8 @@ export default function DocEditorPage() {
       setTitle(d.document.title)
       setContent(d.document.content)
       setTags(d.document.tags?.join(', ') ?? '')
+      setCategory(d.document.category ?? 'General')
+      setSubcategory(d.document.subcategory ?? '')
     }
     setLoading(false)
   }, [id])
@@ -54,6 +69,8 @@ export default function DocEditorPage() {
       body: JSON.stringify({
         title: title.trim(),
         content,
+        category,
+        subcategory: subcategory.trim() || null,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       }),
     })
@@ -76,14 +93,19 @@ export default function DocEditorPage() {
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#94a3b8' }}>Loading…</div>
   if (!doc) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#ef4444', fontWeight: 600 }}>Page not found</div>
 
+  const catMeta = CATEGORY_META[doc.category] ?? CATEGORY_META['General']
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 52px)', background: '#f8fafc' }}>
       {/* Top toolbar */}
       <div style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <button onClick={() => router.push('/docs')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.82rem', fontFamily: 'inherit', padding: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <button onClick={() => router.push('/docs')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: '0.82rem', fontFamily: 'inherit', padding: 0, display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
             ← Docs
           </button>
+          <span style={{ color: '#e2e8f0' }}>/</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: catMeta.color, background: catMeta.color + '15', padding: '2px 7px', borderRadius: '4px' }}>{catMeta.icon} {doc.category}</span>
+          {doc.subcategory && <><span style={{ color: '#e2e8f0' }}>/</span><span style={{ fontSize: '0.72rem', color: '#64748b' }}>{doc.subcategory}</span></>}
           <span style={{ color: '#e2e8f0' }}>/</span>
           <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>{doc.title}</span>
         </div>
@@ -123,6 +145,18 @@ export default function DocEditorPage() {
               value={title} onChange={e => setTitle(e.target.value)}
               style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b', border: 'none', borderBottom: '2px solid #6366f1', outline: 'none', background: 'transparent', fontFamily: 'inherit', width: '100%', paddingBottom: '0.5rem' }}
             />
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>Category</div>
+                <select value={category} onChange={e => setCategory(e.target.value)} style={{ width: '100%', padding: '0.45rem 0.625rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.82rem', fontFamily: 'inherit', color: '#374151', outline: 'none' }}>
+                  {['GDD','TDD','Art Doc','Design Doc','Process Doc','General'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>Subcategory</div>
+                <input value={subcategory} onChange={e => setSubcategory(e.target.value)} placeholder="e.g. Character Design" style={{ width: '100%', boxSizing: 'border-box', padding: '0.45rem 0.625rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.82rem', fontFamily: 'inherit', color: '#374151', outline: 'none' }} />
+              </div>
+            </div>
             <input
               value={tags} onChange={e => setTags(e.target.value)}
               placeholder="Tags (comma-separated): design, gameplay, art…"
@@ -145,7 +179,15 @@ export default function DocEditorPage() {
             {/* Page header */}
             <div style={{ marginBottom: '2rem' }}>
               <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b', margin: '0 0 0.75rem' }}>{doc.title}</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: catMeta.color, background: catMeta.color + '15', padding: '2px 8px', borderRadius: '4px' }}>
+                  {catMeta.icon} {doc.category}
+                </span>
+                {doc.subcategory && (
+                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>
+                    {doc.subcategory}
+                  </span>
+                )}
                 {doc.game && (
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6366f1', background: '#eef2ff', padding: '2px 8px', borderRadius: '4px' }}>
                     🎮 {doc.game}

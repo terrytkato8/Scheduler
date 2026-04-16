@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface GameTitle {
   id: string
@@ -29,6 +30,7 @@ interface LeadRequest {
 type Tab = 'games' | 'departments' | 'leads' | 'users'
 
 export default function SettingsPage() {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('games')
   const [gameTitles, setGameTitles] = useState<GameTitle[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
@@ -140,6 +142,9 @@ export default function SettingsPage() {
       {/* Header */}
       <div style={{ background: '#0d0d14', borderBottom: '1px solid rgba(232,93,123,0.15)', padding: '1.5rem 2rem' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <button onClick={() => router.push('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', fontFamily: 'inherit', padding: 0, marginBottom: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            ← Dashboard
+          </button>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.25rem', background: 'linear-gradient(135deg,#e85d7b,#ff8fab)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Settings
           </h1>

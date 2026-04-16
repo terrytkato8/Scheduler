@@ -68,9 +68,8 @@ const NAV = [
 ]
 
 const WORK_NAV = [
-  { href: '/projects', label: 'Projects',  Icon: FolderIcon },
-  { href: '/tickets',  label: 'Tickets',   Icon: TicketIcon },
-  { href: '/docs',     label: 'Docs',      Icon: DocIcon },
+  { href: '/projects', label: 'Projects', Icon: FolderIcon },
+  { href: '/docs',     label: 'Docs',     Icon: DocIcon },
 ]
 
 export default function Sidebar({ displayName, isAdmin }: { displayName: string; isAdmin: boolean }) {
