@@ -164,8 +164,7 @@ export default function ProjectsPage() {
           <div style={{ display: 'flex', gap: '0.625rem' }}>
             <button
               onClick={openTicket}
-              disabled={projects.length === 0}
-              style={{ padding: '0.625rem 1.25rem', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.625rem', fontWeight: 600, fontSize: '0.875rem', cursor: projects.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: projects.length === 0 ? 0.4 : 1 }}
+              style={{ padding: '0.625rem 1.25rem', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.625rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
               🐛 New Ticket
             </button>
@@ -233,48 +232,57 @@ export default function ProjectsPage() {
               <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1rem', margin: 0 }}>New Ticket</h2>
               <button onClick={closeTicket} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: '1.3rem', lineHeight: 1 }}>×</button>
             </div>
-            <form onSubmit={submitTicket} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              <label style={lbl}>
-                Project *
-                <select value={tProject} onChange={e => setTProject(e.target.value)} style={inp}>
-                  <option value="">— Select a project —</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}{p.game ? ` (${p.game})` : ''}</option>)}
-                </select>
-              </label>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: '0.375rem' }}>Type</div>
-                <div style={{ display: 'flex', gap: '0.375rem' }}>
-                  {(['bug', 'feature', 'improvement', 'task'] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setTType(t)}
-                      style={{ flex: 1, padding: '0.45rem 0.25rem', border: `2px solid ${tType === t ? '#e85d7b' : '#e2e8f0'}`, borderRadius: '0.375rem', background: tType === t ? '#e85d7b12' : 'white', color: tType === t ? '#e85d7b' : '#6b778c', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {TYPE_ICON[t]} {t}
-                    </button>
-                  ))}
+            {projects.length === 0 ? (
+              <div style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📂</div>
+                <p style={{ fontWeight: 700, color: '#172b4d', marginBottom: '0.375rem' }}>No projects yet</p>
+                <p style={{ color: '#6b778c', fontSize: '0.875rem', marginBottom: '1.25rem' }}>Create a project first, then you can add tickets to it.</p>
+                <button onClick={() => { closeTicket(); openCreate() }} style={{ ...pinkBtn }}>Create a Project</button>
+              </div>
+            ) : (
+              <form onSubmit={submitTicket} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                <label style={lbl}>
+                  Project *
+                  <select value={tProject} onChange={e => setTProject(e.target.value)} style={inp}>
+                    <option value="">— Select a project —</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}{p.game ? ` (${p.game})` : ''}</option>)}
+                  </select>
+                </label>
+                <div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: '0.375rem' }}>Type</div>
+                  <div style={{ display: 'flex', gap: '0.375rem' }}>
+                    {(['bug', 'feature', 'improvement', 'task'] as const).map(t => (
+                      <button key={t} type="button" onClick={() => setTType(t)}
+                        style={{ flex: 1, padding: '0.45rem 0.25rem', border: `2px solid ${tType === t ? '#e85d7b' : '#e2e8f0'}`, borderRadius: '0.375rem', background: tType === t ? '#e85d7b12' : 'white', color: tType === t ? '#e85d7b' : '#6b778c', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {TYPE_ICON[t]} {t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <label style={lbl}>
-                Priority
-                <select value={tPriority} onChange={e => setTPriority(e.target.value)} style={inp}>
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </label>
-              <label style={lbl}>
-                Title *
-                <input required value={tTitle} onChange={e => setTTitle(e.target.value)} placeholder="Describe the issue or feature…" style={inp} />
-              </label>
-              <label style={lbl}>
-                Description
-                <textarea value={tDesc} onChange={e => setTDesc(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="Optional details…" />
-              </label>
-              {tError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{tError}</p>}
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
-                <button type="button" onClick={closeTicket} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>Cancel</button>
-                <button type="submit" disabled={tSubmitting} style={{ ...pinkBtn, opacity: tSubmitting ? 0.7 : 1 }}>{tSubmitting ? 'Creating…' : 'Create Ticket'}</button>
-              </div>
-            </form>
+                <label style={lbl}>
+                  Priority
+                  <select value={tPriority} onChange={e => setTPriority(e.target.value)} style={inp}>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label style={lbl}>
+                  Title *
+                  <input autoFocus required value={tTitle} onChange={e => setTTitle(e.target.value)} placeholder="Describe the issue or feature…" style={inp} />
+                </label>
+                <label style={lbl}>
+                  Description
+                  <textarea value={tDesc} onChange={e => setTDesc(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="Optional details…" />
+                </label>
+                {tError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{tError}</p>}
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+                  <button type="button" onClick={closeTicket} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>Cancel</button>
+                  <button type="submit" disabled={tSubmitting} style={{ ...pinkBtn, opacity: tSubmitting ? 0.7 : 1 }}>{tSubmitting ? 'Creating…' : 'Create Ticket'}</button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
