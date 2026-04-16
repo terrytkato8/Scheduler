@@ -126,6 +126,67 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
     ? new Date(sel + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : ''
 
+  const exportICS = () => {
+    const lines: string[] = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Kato.8 Team Scheduler//EN',
+      'CALSCALE:GREGORIAN',
+      'X-WR-CALNAME:Kato.8 Team Scheduler',
+    ]
+
+    const fmtICSDate = (dateStr: string, hour?: number, minute = 0) => {
+      const d = new Date(`${dateStr}T00:00:00`)
+      if (hour != null) {
+        d.setHours(hour, minute, 0, 0)
+        return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+      }
+      return `${dateStr.replace(/-/g, '')}` // all-day
+    }
+
+    events.forEach(ev => {
+      lines.push('BEGIN:VEVENT')
+      lines.push(`UID:event-${ev.id}@kato8`)
+      lines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`)
+      if (ev.start_hour != null) {
+        lines.push(`DTSTART:${fmtICSDate(ev.date, ev.start_hour)}`)
+        lines.push(`DTEND:${fmtICSDate(ev.date, ev.end_hour ?? ev.start_hour + 1)}`)
+      } else {
+        lines.push(`DTSTART;VALUE=DATE:${ev.date.replace(/-/g, '')}`)
+        lines.push(`DTEND;VALUE=DATE:${ev.date.replace(/-/g, '')}`)
+      }
+      lines.push(`SUMMARY:${ev.title}`)
+      lines.push('END:VEVENT')
+    })
+
+    meetings.forEach(mt => {
+      if (!mt.date) return
+      lines.push('BEGIN:VEVENT')
+      lines.push(`UID:meeting-${mt.id}@kato8`)
+      lines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`)
+      if (mt.start_hour != null) {
+        lines.push(`DTSTART:${fmtICSDate(mt.date, mt.start_hour, mt.start_minute ?? 0)}`)
+        lines.push(`DTEND:${fmtICSDate(mt.date, mt.end_hour ?? mt.start_hour + 1, mt.end_minute ?? 0)}`)
+      } else {
+        lines.push(`DTSTART;VALUE=DATE:${mt.date.replace(/-/g, '')}`)
+        lines.push(`DTEND;VALUE=DATE:${mt.date.replace(/-/g, '')}`)
+      }
+      lines.push(`SUMMARY:📅 ${mt.title}`)
+      if (mt.description) lines.push(`DESCRIPTION:${mt.description.replace(/\n/g, '\\n')}`)
+      lines.push('END:VEVENT')
+    })
+
+    lines.push('END:VCALENDAR')
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kato8-calendar-${monthStr}.ics`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div>
       {/* Meeting booker modal */}
@@ -144,7 +205,17 @@ export default function MonthCalendar({ userId: _userId }: { userId: string; dis
       )}
 
       {/* Header actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button
+          onClick={exportICS}
+          title="Download this month's events as an .ics file to import into Google Calendar"
+          style={{ padding: '0.5rem 1rem', background: 'white', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export to Google Cal
+        </button>
         <button
           onClick={() => setShowBooker(true)}
           style={{ padding: '0.5rem 1.25rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
