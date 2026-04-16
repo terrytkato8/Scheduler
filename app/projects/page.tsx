@@ -47,6 +47,8 @@ const BOARD_TYPES = [
 
 const PROJECT_COLORS = ['#e85d7b', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899']
 
+const TYPE_ICON: Record<string, string> = { bug: '🐛', feature: '✨', improvement: '⬆️', task: '✓' }
+
 export default function ProjectsPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
@@ -54,7 +56,7 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  // Form state
+  // New project form state
   const [step, setStep] = useState<1 | 2>(1)
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
@@ -64,6 +66,16 @@ export default function ProjectsPage() {
   const [team, setTeam] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Quick ticket state
+  const [creatingTicket, setCreatingTicket] = useState(false)
+  const [tProject, setTProject] = useState('')
+  const [tType, setTType] = useState<'bug' | 'feature' | 'improvement' | 'task'>('bug')
+  const [tTitle, setTTitle] = useState('')
+  const [tPriority, setTPriority] = useState('medium')
+  const [tDesc, setTDesc] = useState('')
+  const [tSubmitting, setTSubmitting] = useState(false)
+  const [tError, setTError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/projects')
@@ -78,6 +90,37 @@ export default function ProjectsPage() {
 
   const openCreate = () => { setCreating(true); setStep(1); setName(''); setDesc(''); setGame(''); setType('standard'); setColor('#e85d7b'); setTeam(''); setFormError(null) }
   const closeCreate = () => { setCreating(false); setFormError(null) }
+
+  const openTicket = () => { setCreatingTicket(true); setTProject(projects[0]?.id ?? ''); setTType('bug'); setTTitle(''); setTPriority('medium'); setTDesc(''); setTError(null) }
+  const closeTicket = () => { setCreatingTicket(false); setTError(null) }
+
+  const submitTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tProject) { setTError('Please select a project'); return }
+    if (!tTitle.trim()) { setTError('Title is required'); return }
+    const proj = projects.find(p => p.id === tProject)
+    setTSubmitting(true); setTError(null)
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: tType, game: proj?.game ?? 'Studio / General',
+          title: tTitle.trim(), priority: tPriority,
+          description: tDesc || null, project_id: tProject,
+        }),
+      })
+      if (res.ok) {
+        closeTicket()
+        router.push(`/projects/${tProject}?tab=tickets`)
+      } else {
+        const d = await res.json()
+        setTError(d.error ?? 'Failed to create ticket')
+      }
+    } finally {
+      setTSubmitting(false)
+    }
+  }
 
   const createProject = async () => {
     if (!name.trim()) { setFormError('Project name is required'); return }
@@ -118,12 +161,21 @@ export default function ProjectsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={openCreate}
-            style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(232,93,123,0.4)' }}
-          >
-            <span style={{ fontSize: '1.1rem' }}>+</span> New Project
-          </button>
+          <div style={{ display: 'flex', gap: '0.625rem' }}>
+            <button
+              onClick={openTicket}
+              disabled={projects.length === 0}
+              style={{ padding: '0.625rem 1.25rem', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.625rem', fontWeight: 600, fontSize: '0.875rem', cursor: projects.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: projects.length === 0 ? 0.4 : 1 }}
+            >
+              🐛 New Ticket
+            </button>
+            <button
+              onClick={openCreate}
+              style={{ padding: '0.625rem 1.5rem', background: '#e85d7b', color: 'white', border: 'none', borderRadius: '0.625rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(232,93,123,0.4)' }}
+            >
+              <span style={{ fontSize: '1.1rem' }}>+</span> New Project
+            </button>
+          </div>
         </div>
       </div>
 
@@ -172,6 +224,60 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {/* Quick create ticket modal */}
+      {creatingTicket && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: '1rem' }}>
+          <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+            <div style={{ background: '#0d0d14', padding: '1.125rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1rem', margin: 0 }}>New Ticket</h2>
+              <button onClick={closeTicket} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: '1.3rem', lineHeight: 1 }}>×</button>
+            </div>
+            <form onSubmit={submitTicket} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <label style={lbl}>
+                Project *
+                <select value={tProject} onChange={e => setTProject(e.target.value)} style={inp}>
+                  <option value="">— Select a project —</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}{p.game ? ` (${p.game})` : ''}</option>)}
+                </select>
+              </label>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: '0.375rem' }}>Type</div>
+                <div style={{ display: 'flex', gap: '0.375rem' }}>
+                  {(['bug', 'feature', 'improvement', 'task'] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setTType(t)}
+                      style={{ flex: 1, padding: '0.45rem 0.25rem', border: `2px solid ${tType === t ? '#e85d7b' : '#e2e8f0'}`, borderRadius: '0.375rem', background: tType === t ? '#e85d7b12' : 'white', color: tType === t ? '#e85d7b' : '#6b778c', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {TYPE_ICON[t]} {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label style={lbl}>
+                Priority
+                <select value={tPriority} onChange={e => setTPriority(e.target.value)} style={inp}>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <label style={lbl}>
+                Title *
+                <input required value={tTitle} onChange={e => setTTitle(e.target.value)} placeholder="Describe the issue or feature…" style={inp} />
+              </label>
+              <label style={lbl}>
+                Description
+                <textarea value={tDesc} onChange={e => setTDesc(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="Optional details…" />
+              </label>
+              {tError && <p style={{ color: '#ef4444', fontSize: '0.82rem', margin: 0 }}>{tError}</p>}
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+                <button type="button" onClick={closeTicket} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>Cancel</button>
+                <button type="submit" disabled={tSubmitting} style={{ ...pinkBtn, opacity: tSubmitting ? 0.7 : 1 }}>{tSubmitting ? 'Creating…' : 'Create Ticket'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create project modal */}
       {creating && (

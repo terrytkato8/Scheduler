@@ -6,7 +6,9 @@ import Image from 'next/image'
 
 export default function AppNav() {
   const pathname = usePathname()
-  const onProjects = pathname.startsWith('/projects')
+  const onProjects  = pathname.startsWith('/projects')
+  const onDocs      = pathname.startsWith('/docs')
+  const onScheduler = !onProjects && !onDocs
 
   return (
     <div style={{
@@ -50,8 +52,9 @@ export default function AppNav() {
       <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', marginRight: '1rem' }} />
 
       {/* Section tabs */}
-      <NavTab href="/dashboard" label="Scheduler" icon="📅" active={!onProjects} />
-      <NavTab href="/projects" label="Projects" icon="🎯" active={onProjects} />
+      <NavTab href="/dashboard" label="Scheduler" icon="📅" active={onScheduler} />
+      <NavTab href="/projects"  label="Projects"  icon="🎯" active={onProjects} />
+      <NavTab href="/docs"      label="Docs"      icon="📚" active={onDocs} />
     </div>
   )
 }

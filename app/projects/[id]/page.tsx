@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import KanbanBoard from '../_components/KanbanBoard'
 import ArtPipeline from '../_components/ArtPipeline'
 import StandardBoard from '../_components/StandardBoard'
@@ -71,8 +71,9 @@ type Tab = 'board' | 'tickets' | 'devlog'
 export default function ProjectWorkspacePage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const id = params.id as string
-  const [tab, setTab] = useState<Tab>('board')
+  const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) ?? 'board')
 
   const [project, setProject] = useState<Project | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
