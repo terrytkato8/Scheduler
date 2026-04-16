@@ -4,24 +4,17 @@ import React, { useState } from 'react'
 import { useSignIn } from '@clerk/nextjs'
 import Link from 'next/link'
 
-type Stage = 'signin' | 'forgot' | 'reset' | 'mfa'
+type Stage = 'signin' | 'forgot' | 'reset'
 
 export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn()
   const [stage, setStage] = useState<Stage>('signin')
 
-  // Sign-in fields
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  // MFA fields
-  const [mfaCode, setMfaCode] = useState('')
-
-  // Reset fields
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -35,8 +28,6 @@ export default function SignInPage() {
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
         window.location.href = '/dashboard'
-      } else if (result.status === 'needs_second_factor') {
-        setStage('mfa')
       } else {
         setError(`Sign-in incomplete (status: ${result.status}). Please contact support.`)
       }
@@ -54,10 +45,7 @@ export default function SignInPage() {
     setLoading(true)
     setError('')
     try {
-      await signIn.create({
-        strategy: 'reset_password_email_code',
-        identifier: email,
-      })
+      await signIn.create({ strategy: 'reset_password_email_code', identifier: email })
       setStage('reset')
     } catch (err: unknown) {
       const e = err as { errors?: { message: string }[] }
@@ -70,14 +58,8 @@ export default function SignInPage() {
   const handleReset = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     if (!isLoaded) return
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.')
-      return
-    }
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.')
-      return
-    }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return }
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return }
     setLoading(true)
     setError('')
     try {
@@ -98,102 +80,22 @@ export default function SignInPage() {
     }
   }
 
-  const handleMfa = async (e: React.SyntheticEvent) => {
-    e.preventDefault()
-    if (!isLoaded) return
-    setLoading(true)
-    setError('')
-    try {
-      // Try TOTP first, fall back to phone_code
-      let result
-      try {
-        result = await signIn.attemptSecondFactor({ strategy: 'totp', code: mfaCode })
-      } catch {
-        result = await signIn.attemptSecondFactor({ strategy: 'phone_code', code: mfaCode })
-      }
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId })
-        window.location.href = '/dashboard'
-      } else {
-        setError('Verification failed. Please try again.')
-      }
-    } catch (err: unknown) {
-      const e = err as { errors?: { message: string }[] }
-      setError(e.errors?.[0]?.message ?? 'Invalid code. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (stage === 'mfa') {
-    return (
-      <div style={s.page}>
-        <div style={s.card}>
-          <h1 style={s.title}>Two-factor auth</h1>
-          <p style={s.sub}>Enter the 6-digit code from your authenticator app.</p>
-
-          {/* Info banner */}
-          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.5 }}>
-            <strong>Want to use email instead?</strong><br />
-            Go to your <strong>Clerk Dashboard → Configure → Multi-factor</strong> and disable MFA, then remove the MFA device from your profile. Email + password will work on its own.
-          </div>
-
-          <form onSubmit={handleMfa} style={s.form}>
-            <label style={s.label}>
-              Authenticator code
-              <input
-                type="text" required autoFocus inputMode="numeric" maxLength={6}
-                value={mfaCode} onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                style={{ ...s.input, letterSpacing: '0.3em', fontSize: '1.4rem', textAlign: 'center' }}
-                placeholder="000000"
-              />
-            </label>
-
-            {error && <p style={s.error}>{error}</p>}
-
-            <button type="submit" disabled={loading || !isLoaded} style={s.btn}>
-              {loading ? 'Verifying…' : 'Verify'}
-            </button>
-          </form>
-
-          <p style={s.footer}>
-            <button onClick={() => { setStage('signin'); setMfaCode(''); setError('') }} style={s.backBtn}>
-              ← Back to sign in
-            </button>
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   if (stage === 'forgot') {
     return (
       <div style={s.page}>
         <div style={s.card}>
           <h1 style={s.title}>Reset password</h1>
-          <p style={s.sub}>Enter your email and we'll send a reset code.</p>
-
+          <p style={s.sub}>Enter your email and we&apos;ll send a reset code.</p>
           <form onSubmit={handleForgot} style={s.form}>
             <label style={s.label}>
               Email
-              <input
-                type="email" required autoFocus autoComplete="email"
-                value={email} onChange={e => setEmail(e.target.value)}
-                style={s.input} placeholder="you@example.com"
-              />
+              <input type="email" required autoFocus autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} style={s.input} placeholder="you@example.com" />
             </label>
-
             {error && <p style={s.error}>{error}</p>}
-
-            <button type="submit" disabled={loading || !isLoaded} style={s.btn}>
-              {loading ? 'Sending…' : 'Send reset code'}
-            </button>
+            <button type="submit" disabled={loading || !isLoaded} style={s.btn}>{loading ? 'Sending…' : 'Send reset code'}</button>
           </form>
-
           <p style={s.footer}>
-            <button onClick={() => { setStage('signin'); setError('') }} style={s.backBtn}>
-              ← Back to sign in
-            </button>
+            <button onClick={() => { setStage('signin'); setError('') }} style={s.backBtn}>← Back to sign in</button>
           </p>
         </div>
       </div>
@@ -205,50 +107,25 @@ export default function SignInPage() {
       <div style={s.page}>
         <div style={s.card}>
           <h1 style={s.title}>Set new password</h1>
-          <p style={s.sub}>
-            Check <strong>{email}</strong> for a 6-digit code.
-          </p>
-
+          <p style={s.sub}>Check <strong>{email}</strong> for a 6-digit code.</p>
           <form onSubmit={handleReset} style={s.form}>
             <label style={s.label}>
               Reset code
-              <input
-                type="text" required inputMode="numeric" maxLength={6} autoFocus
-                value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))}
-                style={{ ...s.input, letterSpacing: '0.25em', fontSize: '1.25rem', textAlign: 'center' }}
-                placeholder="000000"
-              />
+              <input type="text" required inputMode="numeric" maxLength={6} autoFocus value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))} style={{ ...s.input, letterSpacing: '0.25em', fontSize: '1.25rem', textAlign: 'center' }} placeholder="000000" />
             </label>
-
             <label style={s.label}>
               New password
-              <input
-                type="password" required minLength={8} autoComplete="new-password"
-                value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                style={s.input} placeholder="Min. 8 characters"
-              />
+              <input type="password" required minLength={8} autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={s.input} placeholder="Min. 8 characters" />
             </label>
-
             <label style={s.label}>
               Confirm new password
-              <input
-                type="password" required autoComplete="new-password"
-                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                style={s.input} placeholder="Re-enter password"
-              />
+              <input type="password" required autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={s.input} placeholder="Re-enter password" />
             </label>
-
             {error && <p style={s.error}>{error}</p>}
-
-            <button type="submit" disabled={loading || !isLoaded} style={s.btn}>
-              {loading ? 'Resetting…' : 'Reset password'}
-            </button>
+            <button type="submit" disabled={loading || !isLoaded} style={s.btn}>{loading ? 'Resetting…' : 'Reset password'}</button>
           </form>
-
           <p style={s.footer}>
-            <button onClick={() => { setStage('forgot'); setError(''); setResetCode('') }} style={s.backBtn}>
-              ← Resend code
-            </button>
+            <button onClick={() => { setStage('forgot'); setError(''); setResetCode('') }} style={s.backBtn}>← Resend code</button>
           </p>
         </div>
       </div>
@@ -260,42 +137,23 @@ export default function SignInPage() {
       <div style={s.card}>
         <h1 style={s.title}>Sign in</h1>
         <p style={s.sub}>Welcome back to Team Scheduler</p>
-
         <form onSubmit={handleSignIn} style={s.form}>
           <label style={s.label}>
             Email
-            <input
-              type="email" required autoComplete="email"
-              value={email} onChange={e => setEmail(e.target.value)}
-              style={s.input} placeholder="you@example.com"
-            />
+            <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} style={s.input} placeholder="you@example.com" />
           </label>
-
           <label style={s.label}>
             <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               Password
-              <button
-                type="button"
-                onClick={() => { setStage('forgot'); setError('') }}
-                style={{ background: 'none', border: 'none', color: '#667eea', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
-              >
+              <button type="button" onClick={() => { setStage('forgot'); setError('') }} style={{ background: 'none', border: 'none', color: '#667eea', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
                 Forgot password?
               </button>
             </span>
-            <input
-              type="password" required autoComplete="current-password"
-              value={password} onChange={e => setPassword(e.target.value)}
-              style={s.input} placeholder="••••••••"
-            />
+            <input type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} style={s.input} placeholder="••••••••" />
           </label>
-
           {error && <p style={s.error}>{error}</p>}
-
-          <button type="submit" disabled={loading || !isLoaded} style={s.btn}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+          <button type="submit" disabled={loading || !isLoaded} style={s.btn}>{loading ? 'Signing in…' : 'Sign in'}</button>
         </form>
-
         <p style={s.footer}>
           Don&apos;t have an account?{' '}
           <Link href="/sign-up" style={s.link}>Sign up</Link>
