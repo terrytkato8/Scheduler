@@ -24,7 +24,13 @@ export interface Task {
   depends_on: string[] | null
   project_id: string
   created_at?: string
+  size_estimate: string | null
+  started_at: string | null
+  completed_at: string | null
 }
+
+const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL'] as const
+const SIZE_POINTS: Record<string, number> = { XS: 1, S: 2, M: 3, L: 5, XL: 8 }
 
 interface Props {
   task: Task | null
@@ -62,6 +68,7 @@ export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDele
   const [priority, setPriority] = useState('medium')
   const [assigneeId, setAssigneeId] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [sizeEstimate, setSizeEstimate] = useState<string | null>(null)
   const [externalUrl, setExternalUrl] = useState('')
   const [embedUrl, setEmbedUrl] = useState('')
   const [showEmbed, setShowEmbed] = useState(false)
@@ -82,6 +89,7 @@ export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDele
     setPriority(task.priority)
     setAssigneeId(task.assignee_id ?? '')
     setDueDate(task.due_date ?? '')
+    setSizeEstimate(task.size_estimate ?? null)
     setExternalUrl(task.external_url ?? '')
     setEmbedUrl(task.embed_url ?? '')
     setDependsOn(task.depends_on ?? [])
@@ -224,6 +232,40 @@ export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDele
             />
           </div>
 
+          {/* Size estimate */}
+          <div>
+            <div style={metaLabel}>Size estimate</div>
+            <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+              {SIZE_OPTIONS.map(s => {
+                const sel = sizeEstimate === s
+                return (
+                  <button
+                    key={s} type="button"
+                    onClick={() => {
+                      const next = sel ? null : s
+                      setSizeEstimate(next)
+                      save({ size_estimate: next })
+                    }}
+                    style={{
+                      padding: '0.25rem 0.625rem', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'inherit', border: sel ? '2px solid #667eea' : '1px solid #e2e8f0',
+                      background: sel ? '#eef2ff' : 'white', color: sel ? '#4338ca' : '#64748b',
+                      transition: 'all 0.1s',
+                    }}
+                    title={`${SIZE_POINTS[s]} point${SIZE_POINTS[s] > 1 ? 's' : ''}`}
+                  >
+                    {s}
+                  </button>
+                )
+              })}
+              {sizeEstimate && (
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', alignSelf: 'center' }}>
+                  = {SIZE_POINTS[sizeEstimate]} pt{SIZE_POINTS[sizeEstimate] > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Meta grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
             {/* Assignee */}
@@ -352,12 +394,23 @@ export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDele
             )}
           </div>
 
-          {/* Created at */}
-          {task.created_at && (
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-              Created {new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </div>
-          )}
+          {/* Cycle time / timestamps */}
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {task.created_at && (
+              <span>Created {new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            )}
+            {task.started_at && (
+              <span>Started {new Date(task.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            )}
+            {task.completed_at && task.started_at && (() => {
+              const days = Math.round((new Date(task.completed_at).getTime() - new Date(task.started_at).getTime()) / 86400000)
+              return (
+                <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                  ✓ Completed in {days === 0 ? 'less than a day' : `${days} day${days !== 1 ? 's' : ''}`}
+                </span>
+              )
+            })()}
+          </div>
         </div>
       </div>
     </>

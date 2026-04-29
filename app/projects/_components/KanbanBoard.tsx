@@ -184,6 +184,11 @@ function TaskCard({ task, onClick, onDragStart }: { task: Task; onClick: () => v
             📅 {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
         )}
+        {task.size_estimate && (
+          <span style={{ fontSize: '0.63rem', fontWeight: 800, color: '#4338ca', background: '#eef2ff', padding: '1px 5px', borderRadius: '3px' }}>
+            {task.size_estimate}
+          </span>
+        )}
         {task.external_url && (
           <a href={task.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
             style={{ fontSize: '0.63rem', color: '#667eea', background: '#eef2ff', padding: '1px 5px', borderRadius: '3px', textDecoration: 'none', fontWeight: 600 }}>↗</a>

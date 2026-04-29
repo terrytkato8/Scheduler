@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import KanbanBoard from '../_components/KanbanBoard'
 import ArtPipeline from '../_components/ArtPipeline'
 import StandardBoard from '../_components/StandardBoard'
+import AnalyticsTab from '../_components/AnalyticsTab'
 import { Task } from '../_components/TaskDrawer'
 
 interface Project {
@@ -66,7 +67,7 @@ const LOG_TYPE_ICON: Record<string, string> = {
   feature: '✨', fix: '🔧', update: '📝', release: '🚀', breaking: '⚠️', hotfix: '🔥',
 }
 
-type Tab = 'board' | 'tickets' | 'devlog'
+type Tab = 'board' | 'tickets' | 'devlog' | 'analytics'
 
 export default function ProjectWorkspacePage() {
   const params = useParams()
@@ -229,6 +230,7 @@ export default function ProjectWorkspacePage() {
     { id: 'board', label: `${bt.emoji} Board` },
     { id: 'tickets', label: '🐛 Tickets', count: tickets.length },
     { id: 'devlog', label: '📋 Dev Log', count: devLogs.length },
+    { id: 'analytics', label: '📊 Analytics' },
   ]
 
   return (
@@ -375,6 +377,12 @@ export default function ProjectWorkspacePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div style={{ flex: 1, padding: '1.5rem 2rem', maxWidth: 960 }}>
+          <AnalyticsTab projectId={project.id} />
         </div>
       )}
 

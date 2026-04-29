@@ -210,6 +210,7 @@ function ArtTaskCard({ task, stageColor, stageIdx, totalStages, onClick, onDragS
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.375rem' }}>
         <span style={{ fontSize: '0.62rem', fontWeight: 700, color: pc, background: pc + '18', padding: '1px 5px', borderRadius: '3px' }}>{task.priority}</span>
         {task.due_date && <span style={{ fontSize: '0.62rem', color: '#6b778c', background: '#f1f5f9', padding: '1px 5px', borderRadius: '3px' }}>📅 {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+        {task.size_estimate && <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#4338ca', background: '#eef2ff', padding: '1px 5px', borderRadius: '3px' }}>{task.size_estimate}</span>}
         {task.external_url && <a href={task.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: '0.62rem', color: '#667eea', background: '#eef2ff', padding: '1px 5px', borderRadius: '3px', textDecoration: 'none', fontWeight: 600 }}>↗</a>}
       </div>
       {/* Stage nav */}

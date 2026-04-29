@@ -270,7 +270,7 @@ function TaskTable({ tasks, onEdit, onStatusChange }: { tasks: Task[]; onEdit: (
         <div
           key={task.id}
           onClick={() => onEdit(task)}
-          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto', padding: '0.6rem 1rem', borderBottom: '1px solid #f8fafc', background: PRIORITY_ROW_BG[task.priority] ?? 'white', alignItems: 'center', gap: '1rem', cursor: 'pointer', fontSize: '0.84rem', transition: 'background 0.1s' }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto', padding: '0.6rem 1rem', borderBottom: '1px solid #f8fafc', background: PRIORITY_ROW_BG[task.priority] ?? 'white', alignItems: 'center', gap: '1rem', cursor: 'pointer', fontSize: '0.84rem', transition: 'background 0.1s' }}
           onMouseEnter={e => (e.currentTarget.style.background = '#f1f5f9')}
           onMouseLeave={e => (e.currentTarget.style.background = PRIORITY_ROW_BG[task.priority] ?? 'white')}
         >
@@ -278,6 +278,11 @@ function TaskTable({ tasks, onEdit, onStatusChange }: { tasks: Task[]; onEdit: (
             {task.title}
             {task.external_url && <a href={task.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ marginLeft: '0.25rem', color: '#667eea', fontSize: '0.7rem' }}>↗</a>}
           </span>
+          {task.size_estimate && (
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#4338ca', background: '#eef2ff', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+              {task.size_estimate}
+            </span>
+          )}
           <span style={{ fontSize: '0.72rem', fontWeight: 700, color: PRIORITY_COLOR[task.priority], background: PRIORITY_COLOR[task.priority] + '18', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
             {task.priority}
           </span>
