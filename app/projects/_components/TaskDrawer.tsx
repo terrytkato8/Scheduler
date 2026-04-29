@@ -30,7 +30,8 @@ export interface Task {
 }
 
 const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL'] as const
-const SIZE_POINTS: Record<string, number> = { XS: 1, S: 2, M: 3, L: 5, XL: 8 }
+const SIZE_POINTS: Record<string, number> = { XS: 1, S: 2, M: 5, L: 8, XL: 13 }
+const SIZE_LABEL: Record<string, string> = { XS: '>6 hours', S: '1–2 days', M: '1 week', L: '2 weeks', XL: '4+ weeks' }
 
 interface Props {
   task: Task | null
@@ -252,7 +253,7 @@ export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDele
                       background: sel ? '#eef2ff' : 'white', color: sel ? '#4338ca' : '#64748b',
                       transition: 'all 0.1s',
                     }}
-                    title={`${SIZE_POINTS[s]} point${SIZE_POINTS[s] > 1 ? 's' : ''}`}
+                    title={`${SIZE_LABEL[s]} · ${SIZE_POINTS[s]} pt${SIZE_POINTS[s] > 1 ? 's' : ''}`}
                   >
                     {s}
                   </button>
@@ -260,7 +261,7 @@ export default function TaskDrawer({ task, projectId, allTasks, onUpdate, onDele
               })}
               {sizeEstimate && (
                 <span style={{ fontSize: '0.72rem', color: '#94a3b8', alignSelf: 'center' }}>
-                  = {SIZE_POINTS[sizeEstimate]} pt{SIZE_POINTS[sizeEstimate] > 1 ? 's' : ''}
+                  {SIZE_LABEL[sizeEstimate]} · {SIZE_POINTS[sizeEstimate]}pt
                 </span>
               )}
             </div>

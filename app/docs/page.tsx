@@ -45,6 +45,16 @@ export default function DocsPage() {
   const [newParent, setNewParent] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Upload modal state
+  const [uploading, setUploading] = useState(false)
+  const [uploadTab, setUploadTab] = useState<'local' | 'drive'>('local')
+  const [uploadTitle, setUploadTitle] = useState('')
+  const [uploadCategory, setUploadCategory] = useState('General')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [driveUrl, setDriveUrl] = useState('')
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'importing' | 'reformatting' | 'saving' | 'error'>('idle')
+  const [uploadError, setUploadError] = useState('')
+
   const loadDocs = useCallback(async () => {
     const params = new URLSearchParams()
     if (gameFilter !== 'all') params.set('game', gameFilter)
@@ -88,6 +98,79 @@ export default function DocsPage() {
     }
   }
 
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!uploadTitle.trim()) { setUploadError('Title is required'); return }
+    setUploadError('')
+
+    let originalContent = ''
+    let sourceUrl = ''
+    let sourceType: 'local_upload' | 'google_drive' = 'local_upload'
+
+    // Step 1: get content
+    if (uploadTab === 'local') {
+      if (!uploadFile) { setUploadError('Please select a file'); return }
+      setUploadStatus('importing')
+      try {
+        originalContent = await uploadFile.text()
+      } catch {
+        setUploadError('Could not read file. Please use a .txt or .md file.')
+        setUploadStatus('error')
+        return
+      }
+    } else {
+      if (!driveUrl.trim()) { setUploadError('Please enter a Google Drive URL'); return }
+      setUploadStatus('importing')
+      const importRes = await fetch('/api/documents/drive-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: driveUrl.trim() }),
+      })
+      const importData = await importRes.json()
+      if (!importRes.ok) { setUploadError(importData.error ?? 'Import failed'); setUploadStatus('error'); return }
+      originalContent = importData.content
+      sourceUrl = driveUrl.trim()
+      sourceType = 'google_drive'
+      if (!uploadTitle.trim() && importData.fileName) setUploadTitle(importData.fileName.replace(/\.[^.]+$/, ''))
+    }
+
+    // Step 2: reformat with AI
+    setUploadStatus('reformatting')
+    const fmtRes = await fetch('/api/documents/reformat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: originalContent, title: uploadTitle, category: uploadCategory }),
+    })
+    const fmtData = await fmtRes.json()
+    const reformattedContent = fmtData.reformatted ?? null
+
+    // Step 3: create document
+    setUploadStatus('saving')
+    const docRes = await fetch('/api/documents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: uploadTitle.trim(),
+        category: uploadCategory,
+        content: reformattedContent ?? originalContent,
+        original_content: originalContent,
+        reformatted_content: reformattedContent,
+        source_url: sourceUrl || null,
+        source_type: sourceType,
+      }),
+    })
+    const docData = await docRes.json()
+    if (docData.document) {
+      setUploading(false)
+      setUploadStatus('idle')
+      setUploadTitle(''); setUploadFile(null); setDriveUrl('')
+      router.push(`/docs/${docData.document.id}`)
+    } else {
+      setUploadError(docData.error ?? 'Failed to save document')
+      setUploadStatus('error')
+    }
+  }
+
   const filtered = docs.filter(d =>
     !search ||
     d.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -119,12 +202,20 @@ export default function DocsPage() {
               {docs.length} document{docs.length !== 1 ? 's' : ''} · Team knowledge base
             </p>
           </div>
-          <button
-            onClick={() => setCreating(true)}
-            style={{ padding: '0.6rem 1.375rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(99,102,241,0.4)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-          >
-            <span style={{ fontSize: '1rem' }}>+</span> New Document
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => setUploading(true)}
+              style={{ padding: '0.6rem 1.125rem', background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              ⬆ Upload Doc
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              style={{ padding: '0.6rem 1.375rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(99,102,241,0.4)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <span style={{ fontSize: '1rem' }}>+</span> New Document
+            </button>
+          </div>
         </div>
       </div>
 
@@ -315,6 +406,85 @@ export default function DocsPage() {
                 </button>
                 <button type="submit" disabled={submitting} style={{ padding: '0.5rem 1.25rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', fontFamily: 'inherit', opacity: submitting ? 0.7 : 1 }}>
                   {submitting ? 'Creating…' : 'Create & Edit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upload document modal */}
+      {uploading && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: '1rem' }}>
+          <div style={{ background: 'white', borderRadius: '1rem', width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ background: '#0d0d14', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '1rem 1rem 0 0' }}>
+              <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1rem', margin: 0 }}>⬆ Upload Document</h2>
+              <button onClick={() => { setUploading(false); setUploadStatus('idle'); setUploadError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.3rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <form onSubmit={handleUpload} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Source tabs */}
+              <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '0.25rem' }}>
+                {(['local', 'drive'] as const).map(t => (
+                  <button key={t} type="button" onClick={() => setUploadTab(t)} style={{ padding: '0.45rem 1rem', background: 'none', border: 'none', borderBottom: uploadTab === t ? '2px solid #6366f1' : '2px solid transparent', fontWeight: uploadTab === t ? 700 : 400, color: uploadTab === t ? '#6366f1' : '#94a3b8', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {t === 'local' ? '💻 Local File' : '🔗 Google Drive'}
+                  </button>
+                ))}
+              </div>
+
+              <label style={lbl}>
+                Document Title *
+                <input required value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} placeholder="e.g. Art Style Guide" style={inp} />
+              </label>
+
+              <label style={lbl}>
+                Category
+                <select value={uploadCategory} onChange={e => setUploadCategory(e.target.value)} style={inp}>
+                  {DOC_CATEGORIES.filter(c => c !== 'All').map(c => (
+                    <option key={c} value={c}>{CATEGORY_META[c]?.icon} {c}</option>
+                  ))}
+                </select>
+              </label>
+
+              {uploadTab === 'local' ? (
+                <label style={lbl}>
+                  File <span style={{ fontWeight: 400, color: '#94a3b8' }}>.txt or .md files supported</span>
+                  <input
+                    type="file" accept=".txt,.md,.markdown"
+                    onChange={e => setUploadFile(e.target.files?.[0] ?? null)}
+                    style={{ fontSize: '0.82rem', color: '#374151' }}
+                  />
+                </label>
+              ) : (
+                <label style={lbl}>
+                  Google Drive URL
+                  <input
+                    value={driveUrl}
+                    onChange={e => setDriveUrl(e.target.value)}
+                    placeholder="https://docs.google.com/document/d/…"
+                    style={inp}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 400 }}>
+                    Works with Google Docs and plain text files. Must have your Google Calendar connected.
+                  </span>
+                </label>
+              )}
+
+              {uploadError && <p style={{ color: '#ef4444', fontSize: '0.8rem', margin: 0 }}>{uploadError}</p>}
+
+              {uploadStatus !== 'idle' && uploadStatus !== 'error' && (
+                <div style={{ padding: '0.75rem', background: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd', fontSize: '0.8rem', color: '#0369a1' }}>
+                  {uploadStatus === 'importing' && '⏳ Importing document…'}
+                  {uploadStatus === 'reformatting' && '✨ Reformatting with AI (this takes ~10 seconds)…'}
+                  {uploadStatus === 'saving' && '💾 Saving…'}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => { setUploading(false); setUploadStatus('idle'); setUploadError('') }} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer', color: '#475569', fontFamily: 'inherit' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={uploadStatus !== 'idle' && uploadStatus !== 'error'} style={{ padding: '0.5rem 1.25rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', fontFamily: 'inherit', opacity: uploadStatus !== 'idle' && uploadStatus !== 'error' ? 0.7 : 1 }}>
+                  Upload & Reformat
                 </button>
               </div>
             </form>

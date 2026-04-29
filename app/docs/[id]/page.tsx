@@ -18,6 +18,10 @@ interface Document {
   linked_ticket_ids: string[]
   created_at: string
   updated_at: string
+  original_content: string | null
+  reformatted_content: string | null
+  source_url: string | null
+  source_type: string | null
 }
 
 const CATEGORY_META: Record<string, { icon: string; color: string }> = {
@@ -44,6 +48,9 @@ export default function DocEditorPage() {
   const [subcategory, setSubcategory] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [viewMode, setViewMode] = useState<'reformatted' | 'original'>('reformatted')
+  const [reformatting, setReformatting] = useState(false)
+  const [reformatError, setReformatError] = useState('')
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/documents/${id}`)
@@ -82,6 +89,32 @@ export default function DocEditorPage() {
       setTimeout(() => setSaved(false), 2000)
     }
     setSaving(false)
+  }
+
+  const handleReformat = async () => {
+    if (!doc) return
+    const sourceText = doc.original_content || doc.content
+    if (!sourceText?.trim()) { setReformatError('No content to reformat.'); return }
+    setReformatting(true)
+    setReformatError('')
+    const res = await fetch('/api/documents/reformat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: sourceText, title: doc.title, category: doc.category }),
+    })
+    const d = await res.json()
+    if (d.reformatted) {
+      const patchRes = await fetch(`/api/documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reformatted_content: d.reformatted }),
+      })
+      const pd = await patchRes.json()
+      if (pd.document) { setDoc(pd.document); setViewMode('reformatted') }
+    } else {
+      setReformatError(d.error ?? 'Reformatting failed')
+    }
+    setReformatting(false)
   }
 
   const handleDelete = async () => {
@@ -124,6 +157,12 @@ export default function DocEditorPage() {
             </>
           ) : (
             <>
+              <button
+                onClick={handleReformat} disabled={reformatting}
+                title="Use AI to create a clean, professional version"
+                style={{ padding: '0.4rem 0.875rem', background: reformatting ? '#f1f5f9' : '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.375rem', fontWeight: 600, fontSize: '0.8rem', cursor: reformatting ? 'default' : 'pointer', color: '#4338ca', fontFamily: 'inherit', opacity: reformatting ? 0.6 : 1 }}>
+                {reformatting ? '✨ Reformatting…' : '✨ Reformat with AI'}
+              </button>
               <button onClick={() => setEditing(true)}
                 style={{ padding: '0.4rem 0.875rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
                 ✏️ Edit
@@ -202,19 +241,45 @@ export default function DocEditorPage() {
               </div>
             </div>
 
-            {/* Content */}
-            {doc.content ? (
-              <div style={{ background: 'white', borderRadius: '0.75rem', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', minHeight: 200 }}>
-                <MarkdownRenderer content={doc.content} />
-              </div>
-            ) : (
-              <div
-                onClick={() => setEditing(true)}
-                style={{ background: 'white', borderRadius: '0.75rem', padding: '3rem', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', textAlign: 'center', cursor: 'pointer', border: '2px dashed #e2e8f0', color: '#94a3b8', fontSize: '0.875rem' }}
-              >
-                📝 This page is empty. Click to start writing.
+            {/* Content tabs when reformatted version exists */}
+            {(doc.reformatted_content || doc.original_content) && (
+              <div style={{ display: 'flex', gap: 0, marginBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+                {doc.reformatted_content && (
+                  <button onClick={() => setViewMode('reformatted')} style={{ padding: '0.5rem 1rem', background: 'none', border: 'none', borderBottom: viewMode === 'reformatted' ? '2px solid #6366f1' : '2px solid transparent', fontWeight: viewMode === 'reformatted' ? 700 : 400, color: viewMode === 'reformatted' ? '#6366f1' : '#94a3b8', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    ✨ Reformatted
+                  </button>
+                )}
+                <button onClick={() => setViewMode('original')} style={{ padding: '0.5rem 1rem', background: 'none', border: 'none', borderBottom: viewMode === 'original' ? '2px solid #6366f1' : '2px solid transparent', fontWeight: viewMode === 'original' ? 700 : 400, color: viewMode === 'original' ? '#6366f1' : '#94a3b8', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  📄 Original
+                </button>
               </div>
             )}
+
+            {reformatError && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginBottom: '0.75rem' }}>{reformatError}</p>}
+
+            {/* Content */}
+            {(() => {
+              const displayContent = (doc.reformatted_content && viewMode === 'reformatted')
+                ? doc.reformatted_content
+                : (doc.original_content ?? doc.content)
+              return displayContent ? (
+                <div style={{ background: 'white', borderRadius: '0.75rem', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', minHeight: 200 }}>
+                  {doc.source_url && viewMode === 'original' && (
+                    <div style={{ marginBottom: '1rem', padding: '0.625rem 0.875rem', background: '#f8fafc', borderRadius: '0.375rem', fontSize: '0.75rem', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                      Source: <a href={doc.source_url} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontWeight: 600 }}>{doc.source_url}</a>
+                    </div>
+                  )}
+                  <MarkdownRenderer content={displayContent} />
+                </div>
+              ) : (
+                <div
+                  onClick={() => setEditing(true)}
+                  style={{ background: 'white', borderRadius: '0.75rem', padding: '3rem', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', textAlign: 'center', cursor: 'pointer', border: '2px dashed #e2e8f0', color: '#94a3b8', fontSize: '0.875rem' }}
+                >
+                  📝 This page is empty. Click to start writing.
+                </div>
+              )
+            })()}
 
             {/* Linked items */}
             {(doc.linked_project_ids?.length > 0 || doc.linked_ticket_ids?.length > 0) && (

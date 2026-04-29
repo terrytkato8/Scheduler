@@ -12,7 +12,10 @@ export async function GET() {
   }
 
   const redirectUri = `${appUrl}/api/auth/google/callback`
-  const scope = 'https://www.googleapis.com/auth/calendar.readonly'
+  const scope = [
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/drive.readonly',
+  ].join(' ')
 
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', clientId)

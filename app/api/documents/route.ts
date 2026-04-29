@@ -48,19 +48,23 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('documents')
     .insert({
-      title:              body.title,
-      content:            body.content ?? '',
-      game:               body.game ?? null,
-      parent_id:          body.parent_id ?? null,
-      category:           body.category ?? 'General',
-      subcategory:        body.subcategory ?? null,
-      tags:               body.tags ?? [],
-      linked_project_ids: body.linked_project_ids ?? [],
-      linked_ticket_ids:  body.linked_ticket_ids ?? [],
-      author_id:          userId,
-      author_name:        profile?.display_name ?? null,
-      last_editor_id:     userId,
-      last_editor_name:   profile?.display_name ?? null,
+      title:               body.title,
+      content:             body.content ?? '',
+      game:                body.game ?? null,
+      parent_id:           body.parent_id ?? null,
+      category:            body.category ?? 'General',
+      subcategory:         body.subcategory ?? null,
+      tags:                body.tags ?? [],
+      linked_project_ids:  body.linked_project_ids ?? [],
+      linked_ticket_ids:   body.linked_ticket_ids ?? [],
+      author_id:           userId,
+      author_name:         profile?.display_name ?? null,
+      last_editor_id:      userId,
+      last_editor_name:    profile?.display_name ?? null,
+      original_content:    body.original_content ?? null,
+      reformatted_content: body.reformatted_content ?? null,
+      source_url:          body.source_url ?? null,
+      source_type:         body.source_type ?? 'manual',
     })
     .select()
     .single()

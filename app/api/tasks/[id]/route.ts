@@ -35,6 +35,45 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fire Discord notification when a task is marked done
+  if (body.status === 'done' && data) {
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL
+    if (webhookUrl) {
+      // Get assignee name from profiles
+      let assigneeName = 'Someone'
+      if (data.assignee_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', data.assignee_id)
+          .single()
+        if (profile?.display_name) assigneeName = profile.display_name
+      }
+      const cycleDays = data.started_at && data.completed_at
+        ? Math.round((new Date(data.completed_at).getTime() - new Date(data.started_at).getTime()) / 86400000)
+        : null
+
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          embeds: [{
+            title: '✅ Task Completed',
+            description: `**${data.title}**`,
+            color: 0x10b981,
+            fields: [
+              { name: 'Completed by', value: assigneeName, inline: true },
+              ...(data.size_estimate ? [{ name: 'Size', value: data.size_estimate, inline: true }] : []),
+              ...(cycleDays !== null ? [{ name: 'Cycle time', value: cycleDays === 0 ? '<1 day' : `${cycleDays} day${cycleDays !== 1 ? 's' : ''}`, inline: true }] : []),
+            ],
+            timestamp: new Date().toISOString(),
+          }],
+        }),
+      }).catch(() => {}) // fire-and-forget
+    }
+  }
+
   return NextResponse.json({ task: data })
 }
 

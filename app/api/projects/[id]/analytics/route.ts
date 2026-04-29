@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase'
 
-const SIZE_POINTS: Record<string, number> = { XS: 1, S: 2, M: 3, L: 5, XL: 8 }
+const SIZE_POINTS: Record<string, number> = { XS: 1, S: 2, M: 5, L: 8, XL: 13 }
 
 function getMondayOf(date: Date): string {
   const d = new Date(date)

@@ -188,6 +188,7 @@ function ArtTaskCard({ task, stageColor, stageIdx, totalStages, onClick, onDragS
 }) {
   const [hov, setHov] = useState(false)
   const pc = PRIORITY_COLOR[task.priority] ?? '#94a3b8'
+  const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date + 'T23:59:59') < new Date()
   return (
     <div
       draggable
@@ -196,20 +197,20 @@ function ArtTaskCard({ task, stageColor, stageIdx, totalStages, onClick, onDragS
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background: 'white', borderRadius: '0.5rem',
-        border: '1px solid #e2e8f0', borderTop: `3px solid ${stageColor}`,
+        background: isOverdue ? '#fff5f5' : 'white', borderRadius: '0.5rem',
+        border: isOverdue ? '1px solid #fca5a5' : '1px solid #e2e8f0', borderTop: `3px solid ${isOverdue ? '#ef4444' : stageColor}`,
         padding: '0.625rem 0.75rem', cursor: 'pointer',
         boxShadow: hov ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 2px rgba(0,0,0,0.04)',
         transform: hov ? 'translateY(-1px)' : 'none',
         transition: 'all 0.12s',
       }}
     >
-      <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#172b4d', lineHeight: 1.35, marginBottom: '0.5rem' }}>
-        {task.title}
+      <div style={{ fontSize: '0.82rem', fontWeight: isOverdue ? 800 : 600, color: isOverdue ? '#ef4444' : '#172b4d', lineHeight: 1.35, marginBottom: '0.5rem' }}>
+        {isOverdue && '⚠ '}{task.title}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.375rem' }}>
         <span style={{ fontSize: '0.62rem', fontWeight: 700, color: pc, background: pc + '18', padding: '1px 5px', borderRadius: '3px' }}>{task.priority}</span>
-        {task.due_date && <span style={{ fontSize: '0.62rem', color: '#6b778c', background: '#f1f5f9', padding: '1px 5px', borderRadius: '3px' }}>📅 {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+        {task.due_date && <span style={{ fontSize: '0.62rem', color: isOverdue ? '#ef4444' : '#6b778c', background: isOverdue ? '#fee2e2' : '#f1f5f9', padding: '1px 5px', borderRadius: '3px', fontWeight: isOverdue ? 700 : 400 }}>{isOverdue ? '⚠ OVERDUE' : '📅'} {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
         {task.size_estimate && <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#4338ca', background: '#eef2ff', padding: '1px 5px', borderRadius: '3px' }}>{task.size_estimate}</span>}
         {task.external_url && <a href={task.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: '0.62rem', color: '#667eea', background: '#eef2ff', padding: '1px 5px', borderRadius: '3px', textDecoration: 'none', fontWeight: 600 }}>↗</a>}
       </div>

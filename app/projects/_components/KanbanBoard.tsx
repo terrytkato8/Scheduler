@@ -156,6 +156,7 @@ export default function KanbanBoard({ projectId, tasks, onTasksChange }: Props) 
 function TaskCard({ task, onClick, onDragStart }: { task: Task; onClick: () => void; onDragStart: () => void }) {
   const [hovered, setHovered] = useState(false)
   const pc = PRIORITY_COLOR[task.priority] ?? '#94a3b8'
+  const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date + 'T23:59:59') < new Date()
   return (
     <div
       draggable
@@ -164,24 +165,24 @@ function TaskCard({ task, onClick, onDragStart }: { task: Task; onClick: () => v
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: 'white', borderRadius: '0.5rem',
-        border: '1px solid #e2e8f0', borderLeft: `3px solid ${pc}`,
+        background: isOverdue ? '#fff5f5' : 'white', borderRadius: '0.5rem',
+        border: isOverdue ? '1px solid #fca5a5' : '1px solid #e2e8f0', borderLeft: `3px solid ${isOverdue ? '#ef4444' : pc}`,
         padding: '0.625rem 0.75rem', cursor: 'pointer',
         boxShadow: hovered ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 2px rgba(0,0,0,0.04)',
         transform: hovered ? 'translateY(-1px)' : 'none',
         transition: 'all 0.12s',
       }}
     >
-      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#172b4d', lineHeight: 1.35, marginBottom: '0.45rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {task.title}
+      <div style={{ fontSize: '0.84rem', fontWeight: isOverdue ? 800 : 600, color: isOverdue ? '#ef4444' : '#172b4d', lineHeight: 1.35, marginBottom: '0.45rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {isOverdue && '⚠ '}{task.title}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.63rem', fontWeight: 700, color: pc, background: pc + '18', padding: '1px 5px', borderRadius: '3px' }}>
           {PRIORITY_ICON[task.priority]} {task.priority}
         </span>
         {task.due_date && (
-          <span style={{ fontSize: '0.63rem', color: '#6b778c', background: '#f1f5f9', padding: '1px 5px', borderRadius: '3px' }}>
-            📅 {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          <span style={{ fontSize: '0.63rem', color: isOverdue ? '#ef4444' : '#6b778c', background: isOverdue ? '#fee2e2' : '#f1f5f9', padding: '1px 5px', borderRadius: '3px', fontWeight: isOverdue ? 700 : 400 }}>
+            {isOverdue ? '⚠ OVERDUE' : '📅'} {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
         )}
         {task.size_estimate && (

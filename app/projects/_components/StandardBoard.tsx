@@ -266,16 +266,18 @@ function TaskTable({ tasks, onEdit, onStatusChange }: { tasks: Task[]; onEdit: (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto', padding: '0.4rem 1rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', gap: '1rem', alignItems: 'center' }}>
         <span>Title</span><span>Priority</span><span>Status</span><span>Due</span><span></span>
       </div>
-      {tasks.map(task => (
+      {tasks.map(task => {
+        const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date + 'T23:59:59') < new Date()
+        return (
         <div
           key={task.id}
           onClick={() => onEdit(task)}
-          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto', padding: '0.6rem 1rem', borderBottom: '1px solid #f8fafc', background: PRIORITY_ROW_BG[task.priority] ?? 'white', alignItems: 'center', gap: '1rem', cursor: 'pointer', fontSize: '0.84rem', transition: 'background 0.1s' }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto', padding: '0.6rem 1rem', borderBottom: '1px solid #f8fafc', background: isOverdue ? '#fff5f5' : (PRIORITY_ROW_BG[task.priority] ?? 'white'), alignItems: 'center', gap: '1rem', cursor: 'pointer', fontSize: '0.84rem', transition: 'background 0.1s', borderLeft: isOverdue ? '3px solid #ef4444' : undefined }}
           onMouseEnter={e => (e.currentTarget.style.background = '#f1f5f9')}
-          onMouseLeave={e => (e.currentTarget.style.background = PRIORITY_ROW_BG[task.priority] ?? 'white')}
+          onMouseLeave={e => (e.currentTarget.style.background = isOverdue ? '#fff5f5' : (PRIORITY_ROW_BG[task.priority] ?? 'white'))}
         >
-          <span style={{ fontWeight: 500, color: '#172b4d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {task.title}
+          <span style={{ fontWeight: isOverdue ? 800 : 500, color: isOverdue ? '#ef4444' : '#172b4d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {isOverdue && '⚠ '}{task.title}
             {task.external_url && <a href={task.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ marginLeft: '0.25rem', color: '#667eea', fontSize: '0.7rem' }}>↗</a>}
           </span>
           {task.size_estimate && (
@@ -294,12 +296,13 @@ function TaskTable({ tasks, onEdit, onStatusChange }: { tasks: Task[]; onEdit: (
           >
             {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
-          <span style={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-            {task.due_date ? new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+          <span style={{ fontSize: '0.72rem', color: isOverdue ? '#ef4444' : '#94a3b8', whiteSpace: 'nowrap', fontWeight: isOverdue ? 700 : 400 }}>
+            {task.due_date ? (isOverdue ? '⚠ ' : '') + new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
           </span>
           <button onClick={e => { e.stopPropagation(); onEdit(task) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', padding: '2px 4px', fontSize: '0.8rem' }}>✏️</button>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
