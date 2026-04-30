@@ -16,3 +16,7 @@ CREATE INDEX IF NOT EXISTS personal_tasks_user_id_idx ON personal_tasks (user_id
 -- Explicit grants so the anon key used by API routes can access this table
 GRANT ALL ON TABLE personal_tasks TO anon;
 GRANT ALL ON TABLE personal_tasks TO authenticated;
+
+-- Disable RLS to match the pattern of all other tables in this project
+-- (auth is enforced server-side by Clerk, not by Supabase RLS)
+ALTER TABLE personal_tasks DISABLE ROW LEVEL SECURITY;
