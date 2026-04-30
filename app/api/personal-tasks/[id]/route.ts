@@ -13,6 +13,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (typeof body.completed === 'boolean') updates.completed = body.completed
   if (typeof body.priority === 'string') updates.priority = body.priority
   if ('due_date' in body) updates.due_date = body.due_date
+  if (typeof body.position === 'number') updates.position = body.position
   updates.updated_at = new Date().toISOString()
 
   const supabase = createClient()
