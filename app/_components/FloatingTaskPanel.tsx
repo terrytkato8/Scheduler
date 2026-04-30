@@ -64,7 +64,7 @@ export default function FloatingTaskPanel() {
   const [newTitle, setNewTitle] = useState('')
   const [adding, setAdding] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
-  const [apiError, setApiError] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const dragOffset = useRef({ x: 0, y: 0 })
@@ -135,15 +135,15 @@ export default function FloatingTaskPanel() {
   async function fetchPersonal() {
     try {
       const res = await fetch('/api/personal-tasks')
+      const json = await res.json()
       if (res.ok) {
-        const json = await res.json()
         setPersonalTasks(json.tasks)
-        setApiError(false)
+        setApiError(null)
       } else {
-        setApiError(true)
+        setApiError(json.error ?? `HTTP ${res.status}`)
       }
-    } catch {
-      setApiError(true)
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : 'Network error')
     }
   }
 
@@ -169,9 +169,10 @@ export default function FloatingTaskPanel() {
       const json = await res.json()
       setPersonalTasks(prev => [...prev, json.task])
       setNewTitle('')
-      setApiError(false)
+      setApiError(null)
     } else {
-      setApiError(true)
+      const json = await res.json().catch(() => ({}))
+      setApiError(json.error ?? `HTTP ${res.status}`)
     }
   }
 
@@ -314,14 +315,14 @@ export default function FloatingTaskPanel() {
       {/* Scrollable body */}
       <div style={{ overflowY: 'auto', flex: 1, scrollbarWidth: 'thin' }}>
 
-        {/* Migration warning */}
+        {/* Error banner */}
         {apiError && (
           <div style={{
             margin: '12px 12px 0', padding: '8px 12px', borderRadius: '8px',
             background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.25)',
             color: '#fde68a', fontSize: '11px',
           }}>
-            Personal tasks table missing — run <code style={{ fontFamily: 'monospace' }}>014_personal_tasks.sql</code> in Supabase.
+            <strong>DB error:</strong> {apiError}
           </div>
         )}
 
