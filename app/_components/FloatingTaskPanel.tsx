@@ -21,11 +21,11 @@ type AssignedTask = {
   projects: { name: string } | null
 }
 
-const PRIORITY_DOT: Record<string, string> = {
-  low: 'bg-slate-400',
-  medium: 'bg-yellow-400',
-  high: 'bg-orange-400',
-  critical: 'bg-red-500',
+const PRIORITY_COLOR: Record<string, string> = {
+  low: '#94a3b8',
+  medium: '#facc15',
+  high: '#f97316',
+  critical: '#ef4444',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -35,16 +35,57 @@ const STATUS_LABEL: Record<string, string> = {
   in_review: 'In Review',
 }
 
+const DRAG_THRESHOLD = 5
+const PANEL_W = 320
+const PANEL_H = 500
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v))
+}
+
+function getDefaultPos() {
+  if (typeof window === 'undefined') return { x: 40, y: 40 }
+  return {
+    x: window.innerWidth - PANEL_W - 24,
+    y: window.innerHeight - PANEL_H - 24,
+  }
+}
+
 export default function FloatingTaskPanel() {
   const { isSignedIn, isLoaded } = useAuth()
+
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const [ready, setReady] = useState(false)
+  const [dragging, setDragging] = useState(false)
+
   const [personalTasks, setPersonalTasks] = useState<PersonalTask[]>([])
   const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>([])
   const [newTitle, setNewTitle] = useState('')
   const [adding, setAdding] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [apiError, setApiError] = useState(false)
+
   const inputRef = useRef<HTMLInputElement>(null)
+  const dragOffset = useRef({ x: 0, y: 0 })
+  const dragStartMouse = useRef({ x: 0, y: 0 })
+  const didDrag = useRef(false)
+
+  // Set position client-side only
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ftp-pos')
+      if (saved) {
+        const p = JSON.parse(saved) as { x: number; y: number }
+        setPos(p)
+      } else {
+        setPos(getDefaultPos())
+      }
+    } catch {
+      setPos(getDefaultPos())
+    }
+    setReady(true)
+  }, [])
 
   useEffect(() => {
     if (!isSignedIn) return
@@ -55,6 +96,41 @@ export default function FloatingTaskPanel() {
   useEffect(() => {
     if (open && adding) inputRef.current?.focus()
   }, [open, adding])
+
+  // Drag logic
+  useEffect(() => {
+    if (!dragging) return
+    function onMove(e: MouseEvent) {
+      const dx = e.clientX - dragStartMouse.current.x
+      const dy = e.clientY - dragStartMouse.current.y
+      if (Math.hypot(dx, dy) > DRAG_THRESHOLD) didDrag.current = true
+
+      const x = clamp(e.clientX - dragOffset.current.x, 0, window.innerWidth - PANEL_W)
+      const y = clamp(e.clientY - dragOffset.current.y, 0, window.innerHeight - 40)
+      setPos({ x, y })
+    }
+    function onUp() {
+      setDragging(false)
+      setPos(prev => {
+        localStorage.setItem('ftp-pos', JSON.stringify(prev))
+        return prev
+      })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging])
+
+  function startDrag(e: React.MouseEvent) {
+    e.preventDefault()
+    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
+    dragStartMouse.current = { x: e.clientX, y: e.clientY }
+    didDrag.current = false
+    setDragging(true)
+  }
 
   async function fetchPersonal() {
     try {
@@ -78,9 +154,7 @@ export default function FloatingTaskPanel() {
         const json = await res.json()
         setAssignedTasks(json.tasks)
       }
-    } catch {
-      // silently fail — assigned tasks section just stays empty
-    }
+    } catch {}
   }
 
   async function addTask(e: React.FormEvent) {
@@ -119,188 +193,314 @@ export default function FloatingTaskPanel() {
     if (res.ok) setPersonalTasks(prev => prev.filter(t => t.id !== id))
   }
 
-  // Don't render anything until Clerk has finished loading
-  if (!isLoaded || !isSignedIn) return null
+  if (!isLoaded || !isSignedIn || !ready) return null
 
   const incomplete = personalTasks.filter(t => !t.completed)
   const completed = personalTasks.filter(t => t.completed)
   const totalPending = incomplete.length + assignedTasks.length
 
-  return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-      {/* Expanded panel */}
-      {open && (
-        <div
-          className="w-80 rounded-xl shadow-2xl flex flex-col overflow-hidden"
-          style={{ background: '#1e293b', border: '1px solid #334155', maxHeight: '520px' }}
-        >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-            style={{ background: '#0f172a', borderBottom: '1px solid #334155' }}
-            onClick={() => setOpen(false)}
-          >
-            <span className="text-sm font-semibold text-white">My Tasks</span>
-            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-
-          <div className="overflow-y-auto flex-1" style={{ scrollbarWidth: 'thin' }}>
-            {/* Migration warning */}
-            {apiError && (
-              <div className="mx-3 mt-3 px-3 py-2 rounded-lg text-xs text-yellow-300" style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)' }}>
-                Personal tasks table not found — run migration{' '}
-                <code className="font-mono">014_personal_tasks.sql</code> in Supabase.
-              </div>
-            )}
-
-            {/* ── Personal Tasks ── */}
-            <div className="px-4 pt-3 pb-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Personal
-                </span>
-                {!apiError && (
-                  <button
-                    onClick={() => setAdding(v => !v)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    + Add
-                  </button>
-                )}
-              </div>
-
-              {adding && !apiError && (
-                <form onSubmit={addTask} className="mb-2">
-                  <input
-                    ref={inputRef}
-                    value={newTitle}
-                    onChange={e => setNewTitle(e.target.value)}
-                    placeholder="Task name…"
-                    className="w-full rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 outline-none focus:ring-1 focus:ring-indigo-500"
-                    style={{ background: '#0f172a', border: '1px solid #475569' }}
-                    onKeyDown={e => { if (e.key === 'Escape') { setAdding(false); setNewTitle('') } }}
-                  />
-                </form>
-              )}
-
-              {!apiError && incomplete.length === 0 && !adding && (
-                <p className="text-xs text-slate-500 py-1">No personal tasks — add one!</p>
-              )}
-
-              {!apiError && (
-                <ul className="space-y-1">
-                  {incomplete.map(task => (
-                    <li key={task.id} className="flex items-start gap-2 group">
-                      <button
-                        onClick={() => toggleComplete(task)}
-                        className="mt-0.5 flex-shrink-0 w-4 h-4 rounded border border-slate-500 hover:border-indigo-400 transition-colors flex items-center justify-center"
-                      />
-                      <span className="flex-1 text-sm text-slate-200 leading-snug">{task.title}</span>
-                      <span className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${PRIORITY_DOT[task.priority] ?? 'bg-slate-400'}`} />
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 text-xs flex-shrink-0"
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {!apiError && completed.length > 0 && (
-                <div className="mt-2">
-                  <button
-                    onClick={() => setShowCompleted(v => !v)}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showCompleted ? '▾' : '▸'} {completed.length} completed
-                  </button>
-                  {showCompleted && (
-                    <ul className="mt-1 space-y-1">
-                      {completed.map(task => (
-                        <li key={task.id} className="flex items-start gap-2 group">
-                          <button
-                            onClick={() => toggleComplete(task)}
-                            className="mt-0.5 flex-shrink-0 w-4 h-4 rounded border border-indigo-500 bg-indigo-500 flex items-center justify-center"
-                          >
-                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </button>
-                          <span className="flex-1 text-sm text-slate-500 line-through leading-snug">{task.title}</span>
-                          <button
-                            onClick={() => deleteTask(task.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 text-xs flex-shrink-0"
-                          >
-                            ✕
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ── Assigned Tasks (project) ── */}
-            <div
-              className="px-4 pt-3 pb-3 mt-1"
-              style={{ borderTop: '1px solid #334155', background: 'rgba(15,23,42,0.4)' }}
-            >
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-2">
-                Assigned to me
-              </span>
-
-              {assignedTasks.length === 0 ? (
-                <p className="text-xs text-slate-500">No open tasks assigned to you.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {assignedTasks.map(task => (
-                    <li key={task.id} className="flex items-start gap-2">
-                      <span className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${PRIORITY_DOT[task.priority] ?? 'bg-slate-400'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-200 leading-snug truncate">{task.title}</p>
-                        <p className="text-xs text-slate-500 truncate">
-                          {task.projects?.name ?? 'Unknown project'} · {STATUS_LABEL[task.status] ?? task.status}
-                        </p>
-                      </div>
-                      {task.due_date && (
-                        <span className="flex-shrink-0 text-xs text-slate-400 whitespace-nowrap">
-                          {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Toggle button */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="relative flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium text-white shadow-lg transition-all hover:scale-105 active:scale-95"
-        style={{ background: open ? '#4f46e5' : '#1e293b', border: '1px solid #334155' }}
+  if (!open) {
+    return (
+      <div
+        style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999, userSelect: 'none' }}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        My Tasks
-        {totalPending > 0 && (
-          <span
-            className="absolute -top-1.5 -right-1.5 min-w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center px-1"
-            style={{ background: '#ef4444' }}
-          >
-            {totalPending > 99 ? '99+' : totalPending}
+        <button
+          onMouseDown={startDrag}
+          onClick={() => { if (!didDrag.current) setOpen(true) }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            borderRadius: '9999px',
+            background: '#1e293b',
+            border: '1px solid #334155',
+            color: '#f1f5f9',
+            fontSize: '14px',
+            fontWeight: 500,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            cursor: dragging ? 'grabbing' : 'pointer',
+            position: 'relative',
+          }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          My Tasks
+          {totalPending > 0 && (
+            <span style={{
+              position: 'absolute', top: '-6px', right: '-6px',
+              minWidth: '18px', height: '18px', borderRadius: '9999px',
+              background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+            }}>
+              {totalPending > 99 ? '99+' : totalPending}
+            </span>
+          )}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: pos.x,
+        top: pos.y,
+        zIndex: 9999,
+        width: `${PANEL_W}px`,
+        userSelect: dragging ? 'none' : undefined,
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        background: '#1e293b',
+        border: '1px solid #334155',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: `${PANEL_H}px`,
+      }}
+    >
+      {/* Header — drag handle */}
+      <div
+        onMouseDown={startDrag}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 16px',
+          background: '#0f172a',
+          borderBottom: '1px solid #334155',
+          cursor: dragging ? 'grabbing' : 'grab',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Drag grip dots */}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="#475569">
+            <circle cx="3" cy="3" r="1.2"/><circle cx="9" cy="3" r="1.2"/>
+            <circle cx="3" cy="6" r="1.2"/><circle cx="9" cy="6" r="1.2"/>
+            <circle cx="3" cy="9" r="1.2"/><circle cx="9" cy="9" r="1.2"/>
+          </svg>
+          <svg width="15" height="15" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>My Tasks</span>
+          {totalPending > 0 && (
+            <span style={{
+              minWidth: '18px', height: '18px', borderRadius: '9999px',
+              background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+            }}>
+              {totalPending}
+            </span>
+          )}
+        </div>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={() => setOpen(false)}
+          style={{
+            background: 'none', border: 'none', color: '#64748b',
+            cursor: 'pointer', padding: '2px 4px', fontSize: '16px', lineHeight: 1,
+          }}
+          title="Close"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{ overflowY: 'auto', flex: 1, scrollbarWidth: 'thin' }}>
+
+        {/* Migration warning */}
+        {apiError && (
+          <div style={{
+            margin: '12px 12px 0', padding: '8px 12px', borderRadius: '8px',
+            background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.25)',
+            color: '#fde68a', fontSize: '11px',
+          }}>
+            Personal tasks table missing — run <code style={{ fontFamily: 'monospace' }}>014_personal_tasks.sql</code> in Supabase.
+          </div>
+        )}
+
+        {/* ── Personal ── */}
+        <div style={{ padding: '12px 16px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
+              Personal
+            </span>
+            {!apiError && (
+              <button
+                onClick={() => setAdding(v => !v)}
+                style={{ fontSize: '11px', color: '#818cf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                + Add
+              </button>
+            )}
+          </div>
+
+          {adding && !apiError && (
+            <form onSubmit={addTask} style={{ marginBottom: '8px' }}>
+              <input
+                ref={inputRef}
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="Task name…"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '6px 10px', borderRadius: '6px',
+                  background: '#0f172a', border: '1px solid #475569',
+                  color: '#f1f5f9', fontSize: '13px', outline: 'none',
+                }}
+                onKeyDown={e => { if (e.key === 'Escape') { setAdding(false); setNewTitle('') } }}
+              />
+            </form>
+          )}
+
+          {!apiError && incomplete.length === 0 && !adding && (
+            <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0' }}>No personal tasks — add one!</p>
+          )}
+
+          {!apiError && (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {incomplete.map(task => (
+                <TaskRow
+                  key={task.id}
+                  title={task.title}
+                  priorityColor={PRIORITY_COLOR[task.priority] ?? '#94a3b8'}
+                  onCheck={() => toggleComplete(task)}
+                  onDelete={() => deleteTask(task.id)}
+                  checked={false}
+                />
+              ))}
+            </ul>
+          )}
+
+          {!apiError && completed.length > 0 && (
+            <div style={{ marginTop: '6px' }}>
+              <button
+                onClick={() => setShowCompleted(v => !v)}
+                style={{ fontSize: '11px', color: '#475569', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                {showCompleted ? '▾' : '▸'} {completed.length} completed
+              </button>
+              {showCompleted && (
+                <ul style={{ listStyle: 'none', padding: 0, margin: '4px 0 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {completed.map(task => (
+                    <TaskRow
+                      key={task.id}
+                      title={task.title}
+                      priorityColor={PRIORITY_COLOR[task.priority] ?? '#94a3b8'}
+                      onCheck={() => toggleComplete(task)}
+                      onDelete={() => deleteTask(task.id)}
+                      checked={true}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Assigned to me ── */}
+        <div style={{ padding: '10px 16px 14px', borderTop: '1px solid #334155', background: 'rgba(15,23,42,0.4)' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', display: 'block', marginBottom: '8px' }}>
+            Assigned to me
           </span>
+
+          {assignedTasks.length === 0 ? (
+            <p style={{ fontSize: '12px', color: '#475569', margin: 0 }}>No open tasks assigned to you.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {assignedTasks.map(task => (
+                <li key={task.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{
+                    marginTop: '5px', flexShrink: 0,
+                    width: '7px', height: '7px', borderRadius: '50%',
+                    background: PRIORITY_COLOR[task.priority] ?? '#94a3b8',
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '12px', color: '#e2e8f0', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {task.title}
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {task.projects?.name ?? 'Unknown'} · {STATUS_LABEL[task.status] ?? task.status}
+                    </p>
+                  </div>
+                  {task.due_date && (
+                    <span style={{ flexShrink: 0, fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                      {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TaskRow({
+  title, priorityColor, checked, onCheck, onDelete,
+}: {
+  title: string
+  priorityColor: string
+  checked: boolean
+  onCheck: () => void
+  onDelete: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <li
+      style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        onClick={onCheck}
+        style={{
+          marginTop: '2px', flexShrink: 0,
+          width: '15px', height: '15px', borderRadius: '3px',
+          border: checked ? 'none' : '1.5px solid #475569',
+          background: checked ? '#6366f1' : 'transparent',
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {checked && (
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
         )}
       </button>
-    </div>
+      <span style={{
+        flex: 1, fontSize: '13px', lineHeight: '1.4',
+        color: checked ? '#475569' : '#cbd5e1',
+        textDecoration: checked ? 'line-through' : 'none',
+      }}>
+        {title}
+      </span>
+      <span style={{
+        marginTop: '5px', flexShrink: 0,
+        width: '7px', height: '7px', borderRadius: '50%',
+        background: priorityColor,
+      }} />
+      <button
+        onClick={onDelete}
+        style={{
+          flexShrink: 0, background: 'none', border: 'none',
+          color: '#64748b', cursor: 'pointer', fontSize: '13px',
+          padding: '0 2px', lineHeight: 1,
+          opacity: hovered ? 1 : 0, transition: 'opacity 0.15s',
+        }}
+      >
+        ✕
+      </button>
+    </li>
   )
 }
