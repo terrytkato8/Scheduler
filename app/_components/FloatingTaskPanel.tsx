@@ -591,6 +591,16 @@ function TaskRow({
 }) {
   const [hovered, setHovered] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [draftDate, setDraftDate] = useState(task.due_date ?? '')
+  const dateInputRef = useRef<HTMLInputElement>(null)
+
+  // Keep draft in sync if parent updates the task
+  useEffect(() => { setDraftDate(task.due_date ?? '') }, [task.due_date])
+
+  function confirmDate() {
+    onSetDueDate(draftDate || null)
+    setShowDatePicker(false)
+  }
 
   const isOverdue = !checked && task.due_date
     && new Date(task.due_date + 'T00:00:00') < new Date(new Date().setHours(0, 0, 0, 0))
@@ -599,7 +609,7 @@ function TaskRow({
     <li
       data-task-row
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setShowDatePicker(false) }}
+      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex', flexDirection: 'column', gap: '4px',
         padding: '5px 6px', borderRadius: '7px',
@@ -663,40 +673,46 @@ function TaskRow({
           {task.title}
         </span>
 
-        {/* Due date badge — click to edit */}
-        {task.due_date && !showDatePicker && (
-          <button
-            onClick={() => setShowDatePicker(true)}
-            style={{
-              flexShrink: 0, fontSize: '10px', whiteSpace: 'nowrap',
-              padding: '2px 6px', borderRadius: '4px', cursor: 'pointer',
-              color: isOverdue ? '#f87171' : '#94a3b8',
-              background: isOverdue ? 'rgba(248,113,113,0.1)' : 'rgba(148,163,184,0.08)',
-              border: `1px solid ${isOverdue ? 'rgba(248,113,113,0.3)' : 'rgba(148,163,184,0.2)'}`,
-            }}
-          >
-            {formatRelativeDate(task.due_date)}
-          </button>
-        )}
-
-        {/* "Set date" ghost button — shows on hover if no date */}
-        {!task.due_date && hovered && !showDatePicker && !checked && (
-          <button
-            onClick={() => setShowDatePicker(true)}
-            style={{
-              flexShrink: 0, fontSize: '10px', color: '#475569', whiteSpace: 'nowrap',
-              background: 'none', border: '1px solid #334155',
-              borderRadius: '4px', padding: '2px 6px', cursor: 'pointer',
-            }}
-          >
-            + ETA
-          </button>
+        {/* Due date badge or calendar icon */}
+        {!showDatePicker && !checked && (
+          task.due_date ? (
+            <button
+              onClick={() => { setShowDatePicker(true); setTimeout(() => dateInputRef.current?.showPicker?.(), 50) }}
+              title="Edit date"
+              style={{
+                flexShrink: 0, fontSize: '10px', whiteSpace: 'nowrap',
+                padding: '2px 6px', borderRadius: '4px', cursor: 'pointer',
+                color: isOverdue ? '#f87171' : '#94a3b8',
+                background: isOverdue ? 'rgba(248,113,113,0.1)' : 'rgba(148,163,184,0.08)',
+                border: `1px solid ${isOverdue ? 'rgba(248,113,113,0.3)' : 'rgba(148,163,184,0.2)'}`,
+              }}
+            >
+              {formatRelativeDate(task.due_date)}
+            </button>
+          ) : hovered ? (
+            <button
+              onClick={() => { setShowDatePicker(true); setTimeout(() => dateInputRef.current?.showPicker?.(), 50) }}
+              title="Set due date"
+              style={{
+                flexShrink: 0, background: 'none', border: 'none',
+                color: '#475569', cursor: 'pointer', padding: '1px 2px',
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              {/* Calendar icon */}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </button>
+          ) : null
         )}
 
         {/* Delete */}
         <button
           onClick={onDelete}
-          title="Delete"
+          title="Delete task"
           style={{
             flexShrink: 0, background: 'none', border: 'none',
             color: '#ef4444', cursor: 'pointer', padding: '0 1px', lineHeight: 1,
@@ -710,25 +726,46 @@ function TaskRow({
         </button>
       </div>
 
-      {/* Inline date picker */}
+      {/* Inline date picker — controlled, with confirm + clear */}
       {showDatePicker && (
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingLeft: '36px' }}>
+        <div style={{ display: 'flex', gap: '5px', alignItems: 'center', paddingLeft: '34px' }}>
           <input
+            ref={dateInputRef}
             type="date"
-            defaultValue={task.due_date ?? ''}
-            autoFocus
-            onChange={e => { onSetDueDate(e.target.value || null); setShowDatePicker(false) }}
-            onKeyDown={e => { if (e.key === 'Escape') setShowDatePicker(false) }}
+            value={draftDate}
+            onChange={e => setDraftDate(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { confirmDate() }
+              if (e.key === 'Escape') { setDraftDate(task.due_date ?? ''); setShowDatePicker(false) }
+            }}
             style={{
               fontSize: '12px', padding: '3px 7px', borderRadius: '5px',
-              background: '#0f172a', border: '1px solid #475569',
+              background: '#0f172a', border: '1px solid #6366f1',
               color: '#f1f5f9', outline: 'none', cursor: 'pointer',
+              colorScheme: 'dark',
             }}
           />
+          <button
+            onClick={confirmDate}
+            title="Save"
+            style={{
+              width: '24px', height: '24px', borderRadius: '5px',
+              background: '#6366f1', border: 'none', color: '#fff',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </button>
           {task.due_date && (
             <button
-              onClick={() => { onSetDueDate(null); setShowDatePicker(false) }}
-              style={{ fontSize: '11px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              onClick={() => { onSetDueDate(null); setDraftDate(''); setShowDatePicker(false) }}
+              style={{
+                fontSize: '10px', color: '#64748b', background: 'none',
+                border: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap',
+              }}
             >
               Clear
             </button>
